@@ -1,0 +1,56 @@
+{
+    "theme": {
+        "default": "light",
+        "options": [
+            "light",
+            "dark"
+        ]
+    },
+    "language": {
+        "default": "ma",
+        "options": [
+            "ma",
+            "en"
+        ]
+    },
+    "currency": {
+        "default": "RM",
+        "options": [
+            "USD",
+            "EUR",
+            "GBP"
+        ]
+    },
+    "cashier": {
+        "tax": 0.00,
+        "payment_methods" : {
+            "cash": true,
+            "credit": false,
+            "debit": false,
+            "qr": true,
+            "apple": false
+        },
+        "formattedOrderId": "000000",
+        "coupon_conditions": [
+            "min_specific_item_purchase:X",
+            "min_total_item_purchase:X",
+            "need_to_buy_all_item:0,1",
+            "can_buy_either_one:0,1",
+            "min_price_purchase:X",
+            "max_use:X",
+            "max_use_per_customer:X",
+            "start_date:YYYY-MM-DD",
+            "end_date:YYYY-MM-DD",
+            "days:1,2,3,4,5",
+            "time_range:HH:MM-HH:MM",
+            "membership_level:X",
+            "total_distribute:X",
+            "online_generate:0,1"
+        ]
+    },
+    "userPreferences": {
+        "theme": "light",
+        "language": "ma",
+        "currency": "RM"
+    }
+}

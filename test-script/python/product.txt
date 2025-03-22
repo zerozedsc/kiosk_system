@@ -1,0 +1,17 @@
+Popia Cendawan Berkrim F50,POPIA,50,0,25,1
+Popia Ketam Berkrim F50,POPIA,50,0,25,1
+Popia Labu Berkrim F50,POPIA,50,0,25,1
+Popia Cendawan BBQ F50,POPIA,50,0,25,1
+Popia Tuna Mayo F50,POPIA,50,0,25,1
+Popia Pisang Coklat F50,POPIA,50,0,25,1
+Popia Tom Yum F50,POPIA,50,0,25,1
+Popia Cendawan Berkrim F8,POPIA,10,0,5.5,1
+Popia Ketam Berkrim F8,POPIA,10,0,5.5,1
+Popia Labu Berkrim F8,POPIA,10,0,5.5,1
+Popia Cendawan BBQ F8,POPIA,10,0,5.5,1
+Popia Tuna Mayo F8,POPIA,10,0,5.5,1
+Popia Pisang Coklat F8,POPIA,10,0,5.5,1
+Popia Tom Yum F8,POPIA,10,0,5.5,1
+Corndog,KUEH,2,0,5,1
+Keledek Ayam,KUEH,5,0,10,1
+Keledek Daging,KUEH,5,0,10,1

@@ -1,0 +1,6 @@
+@echo off
+echo Entering PIN 035368...
+adb shell input keyevent 26
+adb shell input text 035368
+adb shell input keyevent 66
+echo PIN entered!  Unlocking device...

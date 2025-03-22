@@ -1,0 +1,454 @@
+//export from configs
+export 'package:flutter/material.dart';
+export 'package:http/http.dart';
+export 'package:shared_preferences/shared_preferences.dart';
+export 'package:autocomplete_textfield/autocomplete_textfield.dart';
+export 'package:flutter/services.dart';
+export 'package:flutter_typeahead/flutter_typeahead.dart';
+export 'package:path_provider/path_provider.dart';
+export 'package:html/parser.dart';
+export 'package:fluttertoast/fluttertoast.dart';
+
+export 'dart:convert';
+export 'dart:math';
+export 'dart:io';
+export 'dart:async';
+// export 'dart:ui';
+export 'dart:collection';
+
+//import to configs
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/services.dart'; // Add this import statement
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:just_audio/just_audio.dart';
+import '../services/bluetooth.dart';
+
+// global var
+late Map<String, dynamic> globalAppConfig;
+// ignore: non_constant_identifier_names
+late LocalizationManager LOCALIZATION;
+// ignore: non_constant_identifier_names
+late LoggingService APP_LOGS;
+BtPrinter? btPrinter;
+bool canVibrate = false;
+// ignore: constant_identifier_names
+const bool DEBUG = true;
+
+const double kTopSpacing = 12.0;
+const double kHorizontalSpacing = 10.0;
+const double kInternalSpacing = 5.5;
+const double kInternalLargeSpacing = 12.0;
+const double kFABSpacing = 76.0;
+const double kDialogBottomSpacing = 24.0;
+
+Color primaryColor = Colors.orange.shade700;
+Color secondaryColor = Colors.orange.shade400;
+ColorScheme themeColorScheme = ColorScheme(
+  brightness: Brightness.light,
+  primary: primaryColor,
+  onPrimary: Colors.white,
+  secondary: secondaryColor,
+  onSecondary: Colors.black,
+  error: Colors.red,
+  onError: Colors.white,
+  background: Colors.white,
+  onBackground: Colors.black,
+  surface: Colors.white,
+  onSurface: Colors.black,
+  // Adjusted colors to work better with orange theme
+  primaryContainer: primaryColor.withOpacity(0.2),
+  onPrimaryContainer: primaryColor,
+  secondaryContainer: secondaryColor.withOpacity(0.2),
+  onSecondaryContainer: secondaryColor,
+  tertiary: primaryColor.withOpacity(0.7),
+  onTertiary: Colors.white,
+  tertiaryContainer: primaryColor.withOpacity(0.1),
+  onTertiaryContainer: primaryColor,
+  surfaceVariant: Colors.white, // Changed from grey.shade100 to white
+  onSurfaceVariant: primaryColor.withOpacity(
+    0.7,
+  ), // Changed to use primaryColor with opacity instead of grey
+);
+ThemeData mainThemeData = ThemeData(
+  // Use a completely custom ColorScheme instead of generating from seed
+  colorScheme: themeColorScheme,
+  useMaterial3: true,
+  buttonTheme: ButtonThemeData(
+    buttonColor: primaryColor,
+    textTheme: ButtonTextTheme.primary,
+  ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: primaryColor,
+      foregroundColor: Colors.white,
+    ),
+  ),
+  textButtonTheme: TextButtonThemeData(
+    style: TextButton.styleFrom(foregroundColor: primaryColor),
+  ),
+  outlinedButtonTheme: OutlinedButtonThemeData(
+    style: OutlinedButton.styleFrom(
+      foregroundColor: primaryColor,
+      side: BorderSide(color: primaryColor),
+    ).copyWith(
+      overlayColor: MaterialStateProperty.resolveWith<Color?>((
+        Set<MaterialState> states,
+      ) {
+        if (states.contains(MaterialState.pressed)) {
+          // Play sound when button is pressed
+          AudioManager().playSound(soundPath: 'assets/sounds/click.mp3');
+          return Colors.white.withOpacity(0.1);
+        }
+        return null;
+      }),
+    ),
+  ),
+  iconTheme: IconThemeData(color: primaryColor),
+  appBarTheme: AppBarTheme(
+    backgroundColor: primaryColor,
+    foregroundColor: Colors.white,
+  ),
+  navigationRailTheme: NavigationRailThemeData(
+    backgroundColor: Colors.white,
+    selectedIconTheme: IconThemeData(color: primaryColor),
+    selectedLabelTextStyle: TextStyle(
+      color: primaryColor,
+      fontWeight: FontWeight.bold,
+    ),
+    unselectedIconTheme: IconThemeData(color: Colors.grey),
+    unselectedLabelTextStyle: TextStyle(color: Colors.grey),
+    indicatorColor: primaryColor.withOpacity(0.2),
+    useIndicator: true,
+  ),
+);
+
+/// Function to play a sound effect
+class AudioManager {
+  static final AudioManager _instance = AudioManager._internal();
+  final AudioPlayer _player = AudioPlayer();
+
+  factory AudioManager() {
+    return _instance;
+  }
+
+  AudioManager._internal();
+
+  Future<void> playSound({String? soundPath}) async {
+    try {
+      final String audioPath = soundPath ?? 'assets/sounds/click.mp3';
+
+      // Check if asset exists
+      try {
+        await rootBundle.load(audioPath);
+      } catch (e) {
+        APP_LOGS.error('Sound file not found: $audioPath');
+        return;
+      }
+
+      // Reset the player if it's playing
+      await _player.setAsset(audioPath);
+      await _player.play();
+      // ignore: empty_catches
+    } catch (e) {}
+  }
+}
+
+/// Class to handle the app configuration
+class ConfigService {
+  static const String _configFileName = 'app_config.json';
+  static const String _assetConfigPath = 'assets/configs/$_configFileName';
+
+  // Initialize and load the configuration
+  static Future<Map<String, dynamic>> initializeConfig() async {
+    await _copyConfigFileToWritableDirectory();
+    return await _loadConfig();
+  }
+
+  // Copy the config file from assets to a writable directory if it doesn't already exist
+  static Future<void> _copyConfigFileToWritableDirectory() async {
+    final Directory appDocDir = await getApplicationDocumentsDirectory();
+    final String configPath = '${appDocDir.path}/$_configFileName';
+
+    // Check if the file already exists
+    if (FileSystemEntity.typeSync(configPath) ==
+        FileSystemEntityType.notFound) {
+      // If not, load from assets and copy to the writable directory
+      print("$configPath not found. Copying from assets.");
+      final ByteData data = await rootBundle.load(_assetConfigPath);
+      final List<int> bytes = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
+      await File(configPath).writeAsBytes(bytes);
+    }
+  }
+
+  // Load the config file from the writable directory
+  static Future<Map<String, dynamic>> _loadConfig() async {
+    final Directory appDocDir = await getApplicationDocumentsDirectory();
+    final String configPath = '${appDocDir.path}/$_configFileName';
+
+    final String data = await File(configPath).readAsString();
+    return json.decode(data);
+  }
+
+  // Update the app configuration file json based on globalAppConfig in the writable directory
+  static Future<void> updateConfig() async {
+    final Directory appDocDir = await getApplicationDocumentsDirectory();
+    final String configPath = '${appDocDir.path}/$_configFileName';
+
+    await File(configPath).writeAsString(json.encode(globalAppConfig));
+  }
+}
+
+/// Class to handle localization
+class LocalizationManager {
+  static final LocalizationManager _instance = LocalizationManager._internal();
+
+  // Singleton instance
+  factory LocalizationManager(String languageCode) {
+    _instance.loadLanguage(languageCode);
+    return _instance;
+  }
+
+  LocalizationManager._internal();
+
+  Map<String, dynamic> _localizedStrings = {};
+
+  // Load the JSON file for the given locale
+  Future<void> loadLanguage(String languageCode) async {
+    final String jsonString = await rootBundle.loadString(
+      'assets/locales/$languageCode.json',
+    );
+    final Map<String, dynamic> jsonMap = json.decode(jsonString);
+
+    // Flattening the map to ensure all values are Strings
+    _localizedStrings = _flattenMap(jsonMap);
+  }
+
+  // Retrieve a translated string by key
+  String localize(String key) {
+    return _localizedStrings[key] ?? key; // Return key if translation not found
+  }
+
+  // Helper method to flatten nested maps
+  Map<String, dynamic> _flattenMap(
+    Map<String, dynamic> map, [
+    String prefix = '',
+  ]) {
+    final Map<String, dynamic> result = {};
+    map.forEach((key, value) {
+      if (value is Map) {
+        result.addAll(
+          _flattenMap(value as Map<String, dynamic>, '$prefix$key.'),
+        );
+      } else {
+        result['$prefix$key'] = value;
+      }
+    });
+    return result;
+  }
+
+  // Retrieve a <String, dynamic> map by key
+  Map<String, dynamic> localizeMap(String key) {
+    return _localizedStrings[key] ?? {}; // Return empty map if key not found
+  }
+}
+
+/// Logger configuration for app-wide logging
+class LoggingService {
+  late Logger _logger;
+  File? _logFile;
+  String _logName;
+  late StreamSubscription<LogRecord> _subscription;
+
+  // Constructor takes a log name
+  LoggingService({required String logName})
+    : _logName = logName.replaceAll(' ', '_');
+
+  // Initialize the logging system
+  Future<LoggingService> initialize() async {
+    _logger = Logger(_logName);
+    Logger.root.level = Level.ALL;
+
+    // Setup log file
+    final Directory appDocDir = await getApplicationDocumentsDirectory();
+    final String logDirPath = '${appDocDir.path}/logs';
+
+    // Create logs directory if it doesn't exist
+    final Directory logDir = Directory(logDirPath);
+    if (!await logDir.exists()) {
+      await logDir.create(recursive: true);
+    }
+
+    final String logPath = '$logDirPath/${_logName}.log';
+    _logFile = File(logPath);
+
+    // Add this helper method to handle all filtering logic
+    bool _shouldFilterLog(String message) {
+      // List of patterns to filter out
+      final List<String> filterPatterns = [
+        // System components
+        'BufferPoolAccessor',
+        'BufferPoolAccessor2.0',
+        'pHwBinder',
+        'onLastStrongRef',
+        'AudioTrack',
+        'CCodec',
+        'MediaCodec',
+        'DMCodec',
+        'AudioTrackShared',
+        'ReflectedParamUpdater',
+        'Codec2Client',
+        'CCodecConfig',
+        'CCodecBufferChannel',
+
+        // Common Android log tags to filter
+        'D/', 'I/', 'W/', 'E/',
+
+        // Path-like patterns
+        '/hw-',
+
+        // Any message containing these keywords
+        'bufferpool2',
+        'evictor expired',
+        'linkling death',
+        'INSP:',
+        'FUTEX_WAKE',
+      ];
+
+      // Check if the log message contains any of the filter patterns
+      for (final pattern in filterPatterns) {
+        if (message.contains(pattern)) {
+          return true; // Should filter this log
+        }
+      }
+
+      return false; // Don't filter this log
+    }
+
+    // Attach a listener ONLY for this logger instance
+    _subscription = _logger.onRecord.listen((record) {
+      // Skip any system or just_audio logs based on comprehensive patterns
+      if (_shouldFilterLog(record.message)) {
+        return; // Skip these logs
+      }
+
+      if (record.loggerName == _logName) {
+        // ✅ Ensure only this logger writes to its file
+        String message =
+            '${record.time}: ${record.level.name}: ${record.message}';
+        if (record.error != null) {
+          message += '\nerror:\n${record.error}';
+        }
+        if (record.stackTrace != null) {
+          message += '\nstackTrace:\n${record.stackTrace}';
+        }
+
+        // Print to console in debug mode
+        if (DEBUG) {
+          console('[$_logName] $message');
+        }
+
+        // Write to log file
+        _logFile?.writeAsStringSync('$message\n', mode: FileMode.append);
+      }
+    });
+
+    debug('Logging service initialized with log name: $_logName');
+    return this;
+  }
+
+  // Dispose of logger listener
+  void dispose() {
+    _subscription.cancel();
+  }
+
+  // Convert a map to a formatted JSON string. Useful for logging complex objects.
+  String map2str(Map<dynamic, dynamic> map) {
+    // Convert all keys to strings first
+    final Map<String, dynamic> stringMap = {};
+    map.forEach((key, value) {
+      stringMap[key.toString()] = value;
+    });
+    return JsonEncoder.withIndent('  ').convert(stringMap);
+  }
+
+
+  // Convert a list to a formatted string with indentation
+  String list2str(List<dynamic> list, {int indentLevel = 0}) {
+    if (list.isEmpty) return '[]';
+    
+    // Calculate indentation
+    final String indent = '  ' * indentLevel;
+    final String nestedIndent = '  ' * (indentLevel + 1);
+    
+    StringBuffer buffer = StringBuffer('[\n');
+    
+    for (int i = 0; i < list.length; i++) {
+      var item = list[i];
+      
+      // Format based on item type
+      if (item is Map) {
+        buffer.write('$nestedIndent${map2str(item)}');
+      } else if (item is List) {
+        buffer.write('$nestedIndent${list2str(item, indentLevel: indentLevel + 1)}');
+      } else if (item is String) {
+        buffer.write('$nestedIndent"$item"');
+      } else {
+        buffer.write('$nestedIndent$item');
+      }
+      
+      // Add comma for all but the last item
+      if (i < list.length - 1) {
+        buffer.write(',');
+      }
+      buffer.write('\n');
+    }
+    
+    buffer.write('$indent]');
+    return buffer.toString();
+  }
+
+
+  // Helper to handle various message types
+  String _formatMessage(dynamic message) {
+    if (message == null) return 'null';
+    if (message is Map<String, dynamic>) return map2str(message);
+    return message.toString();
+  }
+
+  // Log methods with dynamic parameters converted to strings
+  /// Log a message at the [Level.info] log level. Used for general information.
+  void info(dynamic message) => _logger.info(_formatMessage(message));
+
+  /// Log a message at the [Level.warning] log level. Used for warnings.
+  void warning(dynamic message) => _logger.warning(_formatMessage(message));
+
+  /// Log a message at the [Level.severe] log level. Used for errors.
+  void error(dynamic message, [Object? error, StackTrace? stackTrace]) =>
+      _logger.severe(_formatMessage(message), error, stackTrace);
+
+  /// Log a message at the [Level.fine] log level. More detailed than INFO, useful for debugging.
+  void debug(dynamic message) => _logger.fine(_formatMessage(message));
+
+  /// Log a message at the [Level.shout] log level.
+  void critical(dynamic message) => _logger.shout(_formatMessage(message));
+
+  /// Log a message at the [Level.config] log level. Used for configuration messages.
+  void config(dynamic message) => _logger.config(_formatMessage(message));
+
+  /// Log a message at the [Level.finer] log level. More detailed than FINE, useful for tracing logic.
+  void finer(dynamic message) => _logger.finer(_formatMessage(message));
+
+  /// Log a message at the [Level.finest] log level. Extremely detailed logs, often used for profiling.
+  void finest(dynamic message) => _logger.finest(_formatMessage(message));
+
+  /// Print a message to the console.
+  void console(dynamic message) =>
+      print('[$_logName] ${_formatMessage(message)}');
+}

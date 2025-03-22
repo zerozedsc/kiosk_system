@@ -1,0 +1,23 @@
+{
+    "version": "0.1.0",
+    "configurations": [
+        {
+            "name": "kiosk_system (Debug Mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "debug"
+        },
+        {
+            "name": "kiosk_system (Profile Mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "kiosk_system (Release Mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}
