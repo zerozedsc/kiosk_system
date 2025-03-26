@@ -66,7 +66,11 @@
         "toggle_all": "Toggle All",
         "items": "Items",
         "enter": "Enter",
-        "selected": "Selected"
+        "selected": "Selected",
+        "skip": "Skip",
+        "continue": "Continue",
+        "later": "Later",
+        "open_settings": "Open Settings"
     },
     "home_page": {
         "title": "Home Page",
@@ -103,8 +107,7 @@
         "reset_password": "Reset Password",
         "reset_password_button": "Reset Password",
         "username": "Username"
-    }
-    ,
+    },
     "cashier_page": {
         "title": "Cashier Page",
         "sides": "Sides",
@@ -150,6 +153,46 @@
         "reminder": "Reminder",
         "payment_pending_message": "Payment is pending",
         "no_stock": "No Stock",
-        "not_enough_stock": "Not enough stock"
+        "not_enough_stock": "Not enough stock",
+        "items_remove": "Items removed"
+    },
+    "bluetooth_service": {
+        "permission": "Bluetooth Permissions",
+        "permission_message": "This app requires bluetooth permissions to connect to the printer",
+        "grant_required_permissions": "Please grant all requested permissions on the next screens to ensure proper functionality.",
+        "permission_required": "Permission Required",
+        "permission_denied": "Permission Denied",
+        "permission_required_message": "Bluetooth permissions are required for printing receipts. \nYou can enable them in app settings.",
+        "bluetooth_is_off": "Bluetooth is Off",
+        "turn_on_bluetooth": "Please turn on bluetooth to proceed",
+        "bluetooth_not_supported": "Bluetooth is not supported",
+        "bluetooth_not_supported_message": "Your device does not support bluetooth. Please use a device with bluetooth support.",
+        "enable_bluetooth": "Enable Bluetooth",
+        "connected_to": "Connected to",
+        "failed_to_connect": "Failed to connect",
+        "bluetooth_scan_printer": "Please enable Bluetooth to scan for printers",
+        "click_on_printer": "Click/switch on the printer to connect",
+        "bluetooth_is_disabled": "Bluetooth is disabled",
+        "no_printer_found": "No thermal printer found",
+        "ask_enable_bluetooth": "Bluetooth is disabled. Enable Bluetooth to use printer features.",
+        "attempt_printer_connect": "No printer connected. Attempting to find one..."
+    },
+    "usb_service": {
+        "permission": "Permission Required",
+        "permission_message": "The app needs USB device access to connect to your cash drawer and other hardware.",
+        "grant_required_permissions": "Please grant the required permissions when prompted.",
+        "refresh_devices": "Refresh Devices",
+        "test_cash_drawer": "Test Cash Drawer",
+        "no_cash_drawer": "No cash drawer detected",
+        "drawer_opened": "Cash drawer opened successfully",
+        "drawer_failed": "Failed to open cash drawer",
+        "device_name": "Device Name",
+        "type": "Type",
+        "no_devices": "No USB devices found",
+        "cash_drawer": "Cash Drawer",
+        "device": "USB Device",
+        "device_details": "Device Details",
+        "open_drawer": "Open Drawer",
+        "connection_failed": "Failed to connect to device"
     }
 }

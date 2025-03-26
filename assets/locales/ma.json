@@ -55,7 +55,7 @@
         "bulk_send": "Hantar Pukal",
         "bulk_download": "Muat Turun Pukal",
         "bulk_generate": "Hasilkan Pukal",
-        "bulk_copy": "Salin Pukal",	
+        "bulk_copy": "Salin Pukal",
         "count": "Bilangan",
         "price": "Harga",
         "quantity": "Kuantiti",
@@ -65,7 +65,11 @@
         "toggle_all": "Tunjuk Semua",
         "items": "Item",
         "enter": "Masukkan",
-        "selected": "Dipilih"
+        "selected": "Dipilih",
+        "skip": "Langkau",
+        "continue": "Teruskan",
+        "later": "Nanti",
+        "open_settings": "Buka Tetapan"
     },
     "home_page": {
         "title": "Laman Utama",
@@ -102,8 +106,7 @@
         "reset_password": "Tetapkan Semula Kata Laluan",
         "reset_password_button": "Tetapkan Semula",
         "username": "Nama Pengguna"
-    }
-    ,
+    },
     "cashier_page": {
         "title": "Juruwang",
         "sides": "Sampingan",
@@ -151,5 +154,44 @@
         "in_pieces": "Dalam Potongan",
         "in_packages": "Dalam Bungkusan",
         "not_enough_stock": "Stok tidak mencukupi"
+    },
+    "bluetooth_service": {
+        "permission": "Kebenaran Bluetooth",
+        "permission_message": "Aplikasi ini memerlukan kebenaran Bluetooth untuk menyambung ke pencetak",
+        "grant_required_permissions": "Sila benarkan semua kebenaran yang diminta pada skrin seterusnya untuk memastikan fungsi yang betul.",
+        "permission_required": "Kebenaran Diperlukan",
+        "permission_denied": "Kebenaran Ditolak",
+        "permission_required_message": "Kebenaran Bluetooth diperlukan untuk mencetak resit. \nAnda boleh mengaktifkannya dalam tetapan aplikasi.",
+        "bluetooth_is_off": "Bluetooth Dimatikan",
+        "turn_on_bluetooth": "Sila hidupkan Bluetooth untuk meneruskan",
+        "bluetooth_not_supported": "Bluetooth Tidak Disokong",
+        "bluetooth_not_supported_message": "Peranti anda tidak menyokong Bluetooth. Sila gunakan peranti yang mempunyai sokongan Bluetooth.",
+        "enable_bluetooth": "Aktifkan Bluetooth",
+        "connected_to": "Disambungkan ke",
+        "failed_to_connect": "Gagal Disambungkan",
+        "bluetooth_scan_printer": "Sila hidupkan Bluetooth untuk mengimbas pencetak",
+        "click_on_printer": "Klik pada pencetak untuk menyambung",
+        "bluetooth_is_disabled": "Bluetooth Dinonaktifkan",
+        "no_printer_found": "Tiada pencetak ditemui",
+        "ask_enable_bluetooth": "Bluetooth dinonaktifkan. Aktifkan Bluetooth untuk menggunakan ciri pencetak.",
+        "attempt_printer_connect": "Tiada pencetak disambungkan. Cuba mencari..."
+    },
+    "usb_service": {
+        "permission": "Kebenaran Diperlukan",
+        "permission_message": "Aplikasi ini memerlukan akses peranti USB untuk menyambung ke laci tunai dan perkakasan lain.",
+        "grant_required_permissions": "Sila berikan kebenaran yang diperlukan apabila diminta.",
+        "refresh_devices": "Segarkan Peranti",
+        "test_cash_drawer": "Uji Laci Tunai",
+        "no_cash_drawer": "Tiada laci tunai dikesan",
+        "drawer_opened": "Laci tunai berjaya dibuka",
+        "drawer_failed": "Gagal membuka laci tunai",
+        "device_name": "Nama Peranti",
+        "type": "Jenis",
+        "no_devices": "Tiada peranti USB ditemui",
+        "cash_drawer": "Laci Tunai",
+        "device": "Peranti USB",
+        "device_details": "Butiran Peranti",
+        "open_drawer": "Buka Laci",
+        "connection_failed": "Gagal menyambung ke peranti"
     }
 }

@@ -1,7 +1,11 @@
 import '../../configs/configs.dart';
 import '../../services/database/db.dart';
+import '../../components/toastmsg.dart';
 
 export '../../services/permission_handler.dart';
+export '../../services/connection/bluetooth.dart';
+export '../../services/connection/usb.dart';
+
 
 // ignore: non_constant_identifier_names
 late LoggingService CASHIER_LOGS;
@@ -271,5 +275,82 @@ Future<bool> processReceipt({required BuildContext context, required dynamic cur
   } catch (e) {
     APP_LOGS.error('Error processing receipt: $e');
     return false;
+  }
+}
+
+/// Checks if a cash drawer is connected and attempts to open it.
+/// 
+/// Returns a tuple with:
+/// - A boolean indicating success or failure
+/// - A string message describing the result
+/// 
+/// Example:
+///   ```dart
+///   final (success, message) = await checkAndOpenCashDrawer();
+///   if (success) {
+///     // Cash drawer opened successfully
+///   } else {
+///     // Show error message
+///   }
+///   ```
+Future<(bool, String)> checkAndOpenCashDrawer(BuildContext context) async {
+  try {
+    // Check if USB manager is initialized
+    if (USB == null || !USB!.isInitialized) {
+      CASHIER_LOGS.warning('USB Manager not initialized');
+      showToastMessage(
+        context, 
+        LOCALIZATION.localize("usb_service.permission_message"),
+        ToastLevel.error,
+        position: ToastPosition.topRight
+      );
+      return (false, 'USB Manager not initialized');
+    }
+
+    // Check if cash drawer is connected
+    bool isConnected = await USB!.isCashDrawerConnected();
+    if (!isConnected) {
+      CASHIER_LOGS.warning('No cash drawer detected');
+      showToastMessage(
+        context,
+        LOCALIZATION.localize("usb_service.no_cash_drawer"),
+        ToastLevel.warning,
+        position: ToastPosition.topRight
+      );
+      return (false, 'No cash drawer detected');
+    }
+
+    // Attempt to open the cash drawer
+    CASHIER_LOGS.info('Cash drawer detected, attempting to open');
+    final (success, commandUsed) = await USB!.openCashDrawer();
+
+    if (success) {
+      CASHIER_LOGS.info('Cash drawer opened successfully using command: $commandUsed');
+      showToastMessage(
+        context,
+        LOCALIZATION.localize("usb_service.drawer_opened"),
+        ToastLevel.success,
+        position: ToastPosition.topRight
+      );
+      return (true, 'Cash drawer opened successfully');
+    } else {
+      CASHIER_LOGS.warning('Failed to open cash drawer');
+      showToastMessage(
+        context,
+        LOCALIZATION.localize('usb_service.drawer_failed'),
+        ToastLevel.error,
+        position: ToastPosition.topRight
+      );
+      return (false, 'Failed to open cash drawer');
+    }
+  } catch (e, stackTrace) {
+    CASHIER_LOGS.error('Error opening cash drawer', e, stackTrace);
+    showToastMessage(
+      context,
+      '${LOCALIZATION.localize("usb_service.connection_failed")}: ${e.toString()}',
+      ToastLevel.error,
+      position: ToastPosition.topRight
+    );
+    return (false, 'Error: ${e.toString()}');
   }
 }

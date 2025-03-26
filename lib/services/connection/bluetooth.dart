@@ -1,9 +1,9 @@
-import '../configs/configs.dart';
+import '../../configs/configs.dart';
 
-import '../services/permission_handler.dart';
+import '../permission_handler.dart';
 
-import '../components/toastmsg.dart';
-import '../components/image.dart';
+import '../../components/toastmsg.dart';
+import '../../components/image.dart';
 
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart' as bpp;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fbp;
@@ -85,19 +85,25 @@ Future<void> checkPermissionsAndInitBluetooth(BuildContext context) async {
                     children: [
                       Icon(Icons.bluetooth, color: primaryColor),
                       const SizedBox(width: 10),
-                      const Text('Bluetooth Permissions'),
+                      Text(
+                        LOCALIZATION.localize("bluetooth_service.permission"),
+                      ),
                     ],
                   ),
-                  content: const Column(
+                  content: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'This app needs Bluetooth permissions to connect to receipt printers.',
+                        LOCALIZATION.localize(
+                          "bluetooth_service.permission_message",
+                        ),
                         style: TextStyle(fontSize: 16),
                       ),
                       SizedBox(height: 12),
                       Text(
-                        'Please grant all requested permissions on the next screens to ensure proper functionality.',
+                        LOCALIZATION.localize(
+                          "bluetooth_service.grant_required_permissions",
+                        ),
                         style: TextStyle(fontSize: 14),
                       ),
                     ],
@@ -105,11 +111,11 @@ Future<void> checkPermissionsAndInitBluetooth(BuildContext context) async {
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Skip'),
+                      child: Text(LOCALIZATION.localize("main_word.skip")),
                     ),
                     ElevatedButton(
                       onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Continue'),
+                      child: Text(LOCALIZATION.localize("main_word.continue")),
                     ),
                   ],
                 ),
@@ -139,22 +145,29 @@ Future<void> checkPermissionsAndInitBluetooth(BuildContext context) async {
                 context: context,
                 builder:
                     (context) => AlertDialog(
-                      title: const Text('Permissions Required'),
-                      content: const Text(
-                        'Bluetooth permissions are required for printing receipts. '
-                        'You can enable them in app settings.',
+                      title: Text(
+                        LOCALIZATION.localize(
+                          "bluetooth_service.permission_required",
+                        ),
+                      ),
+                      content: Text(
+                        LOCALIZATION.localize(
+                          "bluetooth_service.permission_required_message",
+                        ),
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Later'),
+                          child: Text(LOCALIZATION.localize("main_word.later")),
                         ),
                         ElevatedButton(
                           onPressed: () {
                             Navigator.of(context).pop();
                             openAppSettings();
                           },
-                          child: const Text('Open Settings'),
+                          child: Text(
+                            LOCALIZATION.localize("main_word.open_settings"),
+                          ),
                         ),
                       ],
                     ),
@@ -177,6 +190,7 @@ Future<void> checkPermissionsAndInitBluetooth(BuildContext context) async {
     BtPrinter.init().then((printer) => btPrinter = printer);
   }
 }
+
 
 class BtPrinter {
   late StreamSubscription<bool> _isScanningSubscription;
@@ -265,7 +279,7 @@ class BtPrinter {
       if (context.mounted) {
         showToastMessage(
           context,
-          'Bluetooth is disabled. Enable Bluetooth to use printer features.',
+          LOCALIZATION.localize("bluetooth_service.ask_enable_bluetooth"),
           ToastLevel.warning,
           position: ToastPosition.bottom,
         );
@@ -383,22 +397,26 @@ class BtPrinter {
         barrierDismissible: false,
         builder: (BuildContext dialogContext) {
           return AlertDialog(
-            title: const Row(
+            title: Row(
               children: [
                 Icon(Icons.bluetooth_disabled),
                 SizedBox(width: 8),
-                Text('Bluetooth is Off'),
+                Text(
+                  LOCALIZATION.localize("bluetooth_service.bluetooth_is_off"),
+                ),
               ],
             ),
-            content: const Text('Please turn on Bluetooth to proceed.'),
+            content: Text('Please turn on Bluetooth to proceed.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
+                child: Text(LOCALIZATION.localize("main_word.cancel")),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Enable Bluetooth'),
+                child: Text(
+                  LOCALIZATION.localize("bluetooth_service.enable_bluetooth"),
+                ),
               ),
             ],
           );
@@ -518,7 +536,7 @@ class BtPrinter {
         );
         showToastMessage(
           context,
-          'No printer connected. Attempting to find one...',
+          LOCALIZATION.localize("bluetooth_service.attempt_printer_connect"),
           ToastLevel.warning,
           position: ToastPosition.topRight,
         );
@@ -530,7 +548,7 @@ class BtPrinter {
         if (availablePrinters.isEmpty) {
           showToastMessage(
             context,
-            'No thermal printers found. Please turn on your printer and try again.',
+            '${LOCALIZATION.localize("bluetooth_service.no_printer_found")}. ${LOCALIZATION.localize("bluetooth_service.click_on_printer")}.',
             ToastLevel.warning,
           );
           return false;
@@ -541,7 +559,7 @@ class BtPrinter {
         if (!connectionCreated) {
           showToastMessage(
             context,
-            'Failed to connect to printer: ${availablePrinters[0].name}',
+            '${LOCALIZATION.localize("bluetooth_service.failed_to_connect")} printer: ${availablePrinters[0].name}',
             ToastLevel.error,
             position: ToastPosition.topRight,
           );
@@ -550,7 +568,7 @@ class BtPrinter {
 
         showToastMessage(
           context,
-          'Connected to printer: ${selectedPrinter!.name}',
+          '${LOCALIZATION.localize("bluetooth_service.connected_to")} printer: ${selectedPrinter!.name}',
           ToastLevel.success,
           position: ToastPosition.topRight,
         );
@@ -715,7 +733,7 @@ class BtPrinter {
         );
         showToastMessage(
           context,
-          'No printer connected. Attempting to find one...',
+          '${LOCALIZATION.localize("bluetooth_services.attempt_printer_connect")}...',
           ToastLevel.warning,
           position: ToastPosition.topRight,
         );
@@ -820,17 +838,60 @@ class BtPrinter {
 
           // Items list
           for (var item in receiptData['itemList']) {
-            String itemText = "${item['name']} ${item['quantity']}x";
-            String priceText = "RM${item['total_price']}";
+            // Get item name and split into words
+            String itemName = item['name'];
+            List<String> words = itemName.split(' ');
 
-            // Calculate padding to align price to the right
-            int lineLength = 32; // Typical chars per line on thermal paper
-            int paddingLength = lineLength - itemText.length - priceText.length;
-            String padding = paddingLength > 0 ? ' ' * paddingLength : ' ';
+            // Create lines with max characters per line
+            List<String> lines = [];
+            String currentLine = '';
+            int maxLen = 21;
 
-            commandFutures.add(
-              escCommand.text(content: "$itemText$padding$priceText\n"),
-            );
+            for (String word in words) {
+              if (currentLine.isEmpty) {
+                currentLine = word;
+              } else if ((currentLine + ' ' + word).length <= maxLen) {
+                currentLine += ' ' + word;
+              } else {
+                lines.add(currentLine);
+                currentLine = word;
+              }
+            }
+
+            // Add the last line if not empty
+            if (currentLine.isNotEmpty) {
+              lines.add(currentLine);
+            }
+
+            // Print each line of the item name
+            for (int i = 0; i < lines.length; i++) {
+              if (i < lines.length - 1) {
+                // Not the last line of the item name
+                commandFutures.add(escCommand.text(content: "${lines[i]}\n"));
+              } else {
+                // Last line of the item name - add quantity and price
+                String qtyText = "${item['quantity']}x";
+                String priceText = "RM${item['total_price']}";
+
+                // Calculate padding to align price to the right and qty just before it
+                int lineLength = 32; // Typical chars per line on thermal paper
+                int contentLength =
+                    lines[i].length +
+                    qtyText.length +
+                    priceText.length +
+                    2; // +2 for spaces
+                int paddingLength = lineLength - contentLength;
+
+                // Ensure we have at least one space
+                String padding = paddingLength > 0 ? ' ' * paddingLength : ' ';
+
+                commandFutures.add(
+                  escCommand.text(
+                    content: "${lines[i]} $padding$qtyText $priceText\n",
+                  ),
+                );
+              }
+            }
           }
 
           commandFutures.add(
@@ -848,14 +909,16 @@ class BtPrinter {
             ),
           );
 
-          String discountText = "DISCOUNT";
-          String discountAmount = "RM${receiptData['discountAmount']}";
-          commandFutures.add(
-            escCommand.text(
-              content:
-                  "$discountText${' ' * (32 - discountText.length - discountAmount.length)}$discountAmount\n",
-            ),
-          );
+          if (receiptData['discountAmount'] > 0) {
+            String discountText = "DISCOUNT";
+            String discountAmount = "RM${receiptData['discountAmount']}";
+            commandFutures.add(
+              escCommand.text(
+                content:
+                    "$discountText${' ' * (32 - discountText.length - discountAmount.length)}$discountAmount\n",
+              ),
+            );
+          }
 
           String taxText = "SERVICE TAX";
           String taxAmount = "RM${receiptData['tax']}";
@@ -1056,12 +1119,18 @@ class BtPrinter {
 
                     if (success) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Connected to ${printer.name}')),
+                        SnackBar(
+                          content: Text(
+                            '${LOCALIZATION.localize("bluetooth_service.connected_to")} ${printer.name}',
+                          ),
+                        ),
                       );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Failed to connect to ${printer.name}'),
+                          content: Text(
+                            '${LOCALIZATION.localize("bluetooth_service.failed_to_connect")} ${printer.name}',
+                          ),
                         ),
                       );
                     }
@@ -1092,7 +1161,7 @@ class BtPrinter {
                             if (isConnected)
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.print, size: 18),
-                                label: const Text('Test Print'),
+                                label: Text('Test Print'),
                                 onPressed: () async {
                                   bool success = await printTestPage(context);
                                   if (success) {
@@ -1118,7 +1187,7 @@ class BtPrinter {
                         Text('MAC Address: ${printer.address}'),
                         Text('Type: ${printer.type}'),
                         if (isConnected)
-                          const Text(
+                          Text(
                             'Status: Connected',
                             style: TextStyle(
                               color: Colors.green,
@@ -1126,7 +1195,7 @@ class BtPrinter {
                             ),
                           ),
                         if (!isConnected)
-                          const Text(
+                          Text(
                             'Click to connect',
                             style: TextStyle(
                               fontStyle: FontStyle.italic,
@@ -1267,10 +1336,12 @@ class BtPrinter {
                     ),
                     const SizedBox(height: 16),
                     if (!isBluetoothOn)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(vertical: 8.0),
                         child: Text(
-                          "Please enable Bluetooth to scan for printers",
+                          LOCALIZATION.localize(
+                            "bluetooth_service.bluetooth_is_disabled",
+                          ),
                           style: TextStyle(
                             color: Colors.red,
                             fontWeight: FontWeight.bold,
@@ -1278,19 +1349,23 @@ class BtPrinter {
                         ),
                       ),
                     if (isBluetoothOn && printers.isNotEmpty)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(vertical: 8.0),
                         child: Text(
-                          "Click on a printer to connect",
+                          LOCALIZATION.localize(
+                            "bluetooth_service.click_on_printer",
+                          ),
                           style: TextStyle(fontStyle: FontStyle.italic),
                         ),
                       ),
                     Expanded(
                       child:
                           !isBluetoothOn
-                              ? const Center(
+                              ? Center(
                                 child: Text(
-                                  'Bluetooth is disabled',
+                                  LOCALIZATION.localize(
+                                    "bluetooth_service.bluetooth_is_disabled",
+                                  ),
                                   style: TextStyle(color: Colors.grey),
                                 ),
                               )
@@ -1299,7 +1374,9 @@ class BtPrinter {
                                 child: Text(
                                   isScanning
                                       ? 'Scanning for printers...'
-                                      : 'No printers found',
+                                      : LOCALIZATION.localize(
+                                        "bluetooth_service.no_printers_found",
+                                      ),
                                 ),
                               )
                               : ListView.builder(
@@ -1319,7 +1396,7 @@ class BtPrinter {
                     Navigator.pop(context);
                     completer.complete(false);
                   },
-                  child: const Text('Cancel'),
+                  child: Text(LOCALIZATION.localize("main_word.cancel")),
                 ),
                 TextButton(
                   onPressed:
@@ -1331,7 +1408,7 @@ class BtPrinter {
                             completer.complete(true);
                           }
                           : null,
-                  child: const Text('Continue'),
+                  child: Text(LOCALIZATION.localize("main_word.continue")),
                 ),
               ],
             );

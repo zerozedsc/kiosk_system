@@ -25,7 +25,8 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:just_audio/just_audio.dart';
-import '../services/bluetooth.dart';
+import '../services/connection/bluetooth.dart';
+import '../services/connection/usb.dart';
 
 // global var
 late Map<String, dynamic> globalAppConfig;
@@ -34,6 +35,7 @@ late LocalizationManager LOCALIZATION;
 // ignore: non_constant_identifier_names
 late LoggingService APP_LOGS;
 BtPrinter? btPrinter;
+UsbManager? USB;
 bool canVibrate = false;
 // ignore: constant_identifier_names
 const bool DEBUG = true;
@@ -125,6 +127,20 @@ ThemeData mainThemeData = ThemeData(
     useIndicator: true,
   ),
 );
+
+String getCurrentFunctionName(StackTrace currentStack) {
+  String stackTraceString = currentStack.toString();
+  // Extract the function name from stack trace
+  RegExp regExp = RegExp(r'#0\s+([^(]+)');
+  Match? match = regExp.firstMatch(stackTraceString);
+  if (match != null) {
+    String fullName = match.group(1)?.trim() ?? 'unknown';
+    // Remove the trailing parenthesis if present
+    fullName = fullName.replaceAll(RegExp(r'\($'), '');
+    return fullName;
+  }
+  return 'unknown_function';
+}
 
 /// Function to play a sound effect
 class AudioManager {
@@ -378,42 +394,42 @@ class LoggingService {
     return JsonEncoder.withIndent('  ').convert(stringMap);
   }
 
-
   // Convert a list to a formatted string with indentation
   String list2str(List<dynamic> list, {int indentLevel = 0}) {
     if (list.isEmpty) return '[]';
-    
+
     // Calculate indentation
     final String indent = '  ' * indentLevel;
     final String nestedIndent = '  ' * (indentLevel + 1);
-    
+
     StringBuffer buffer = StringBuffer('[\n');
-    
+
     for (int i = 0; i < list.length; i++) {
       var item = list[i];
-      
+
       // Format based on item type
       if (item is Map) {
         buffer.write('$nestedIndent${map2str(item)}');
       } else if (item is List) {
-        buffer.write('$nestedIndent${list2str(item, indentLevel: indentLevel + 1)}');
+        buffer.write(
+          '$nestedIndent${list2str(item, indentLevel: indentLevel + 1)}',
+        );
       } else if (item is String) {
         buffer.write('$nestedIndent"$item"');
       } else {
         buffer.write('$nestedIndent$item');
       }
-      
+
       // Add comma for all but the last item
       if (i < list.length - 1) {
         buffer.write(',');
       }
       buffer.write('\n');
     }
-    
+
     buffer.write('$indent]');
     return buffer.toString();
   }
-
 
   // Helper to handle various message types
   String _formatMessage(dynamic message) {

@@ -1,12 +1,13 @@
 import 'package:device_preview/device_preview.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'configs/configs.dart';
 import 'pages/auth_page.dart';
 import 'services/database/db.dart';
 import 'services/inventory/inventory_services.dart';
-import 'services/bluetooth.dart';
+import 'services/connection/bluetooth.dart';
+import 'services/connection/usb.dart';
+
 
 import 'components/toastmsg.dart';
 
@@ -93,7 +94,11 @@ class _AppRootState extends State<AppRoot> {
         builder: (context) {
           // Now we have a context with MaterialLocalizations
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Initialize Bluetooth in the background
             checkPermissionsAndInitBluetooth(context);
+            
+            // Initialize USB Manager in parallel
+            checkPermissionsAndInitUsb(context);
           });
           return const LoginPage();
         },
@@ -101,4 +106,7 @@ class _AppRootState extends State<AppRoot> {
       debugShowCheckedModeBanner: false,
     );
   }
+  
+
+
 }

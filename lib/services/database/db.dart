@@ -109,7 +109,7 @@ class DatabaseConnection {
       List<int> writableBytes = await File(dbPath).readAsBytes();
 
       // Compare the bytes to determine if an update is needed
-      if (!_compareBytes(assetBytes, writableBytes)) {
+      if (!_compareBytes(assetBytes, writableBytes) && DEBUG) {
         APP_LOGS.warning(
           "Database in assets has been updated. Replacing the writable database...",
         );

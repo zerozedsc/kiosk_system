@@ -2,7 +2,8 @@ import '../configs/configs.dart';
 import '../components/toastmsg.dart';
 import '../services/database/db.dart';
 import '../services/inventory/inventory_services.dart';
-import '../services/bluetooth.dart';
+import '../services/connection/bluetooth.dart';
+import '../services/connection/usb.dart';
 
 class DebugPage extends StatefulWidget {
   const DebugPage({Key? key}) : super(key: key);
@@ -741,6 +742,8 @@ class _DebugPageState extends State<DebugPage>
     );
   }
 
+
+
   Widget _buildConnectionTab() {
     final theme = Theme.of(context);
     
@@ -806,7 +809,7 @@ class _DebugPageState extends State<DebugPage>
                 },
               ),
               
-              // Rest of the code remains the same...
+              // Wi-Fi Connection Management
               _buildConnectionCard(
                 icon: Icons.wifi,
                 title: 'Wi-Fi',
@@ -816,15 +819,55 @@ class _DebugPageState extends State<DebugPage>
                 onPressed: null,
               ),
               
-              _buildConnectionCard(
-                icon: Icons.usb,
-                title: 'USB',
-                description: 'USB connection management',
-                buttonLabel: 'Not Implemented',
-                buttonIcon: Icons.settings,
-                onPressed: null,
+              // USB Connection Section with Status
+              Builder(
+                builder: (context) {
+                  final bool isUsbInitialized = USB != null && USB!.isInitialized;
+                  return _buildConnectionCard(
+                    icon: Icons.usb,
+                    title: 'USB',
+                    description: isUsbInitialized 
+                        ? 'USB Manager initialized' 
+                        : 'USB Manager not initialized',
+                    buttonLabel: 'Manage',
+                    buttonIcon: Icons.settings,
+                    statusColor: isUsbInitialized ? Colors.green : Colors.red,
+                    onPressed: () async {
+                      if (USB == null) {
+                        // Initialize USB Manager if not already done
+                        await checkPermissionsAndInitUsb(context);
+                        setState(() {}); // Refresh UI after initialization
+                        showToastMessage(
+                          context,
+                          'USB Manager initialized',
+                          ToastLevel.info,
+                        );
+                      } else {
+                        // Show USB device management dialog
+                        try {
+                          final selectedDevice = await USB!.showUsbManagementDialog(context);
+                          if (selectedDevice != null) {
+                            showToastMessage(
+                              context,
+                              'USB device selected: ${selectedDevice['deviceName']}',
+                              ToastLevel.success,
+                            );
+                          }
+                        } catch (e) {
+                          showToastMessage(
+                            context,
+                            'USB error: $e',
+                            ToastLevel.error,
+                          );
+                          APP_LOGS.error('USB error: $e');
+                        }
+                      }
+                    },
+                  );
+                }
               ),
               
+              // Network Connectivity Diagnostics
               _buildConnectionCard(
                 icon: Icons.language,
                 title: 'Network',
@@ -837,6 +880,116 @@ class _DebugPageState extends State<DebugPage>
           ),
           
           const SizedBox(height: 16),
+          
+          // Cash Drawer Control Card
+          Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.point_of_sale, color: theme.colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Cash Drawer Controls',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            if (USB == null || !USB!.isInitialized) {
+                              showToastMessage(
+                                context,
+                                'USB Manager not initialized',
+                                ToastLevel.warning,
+                              );
+                              return;
+                            }
+                            
+                            try {
+                              var drawer = await USB!.openCashDrawer();
+                              final drawerOpened = drawer.$1;
+                              if (drawerOpened) {
+                                showToastMessage(
+                                  context,
+                                  'Cash drawer opened successfully',
+                                  ToastLevel.success,
+                                );
+                              } else {
+                                showToastMessage(
+                                  context,
+                                  'Failed to open cash drawer',
+                                  ToastLevel.warning,
+                                );
+                              }
+                            } catch (e) {
+                              showToastMessage(
+                                context,
+                                'Error opening cash drawer: $e',
+                                ToastLevel.error,
+                              );
+                              APP_LOGS.error('Cash drawer error: $e');
+                            }
+                          },
+                          icon: const Icon(Icons.open_in_browser),
+                          label: const Text('Open Cash Drawer'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: theme.colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            if (USB == null || !USB!.isInitialized) {
+                              showToastMessage(
+                                context,
+                                'USB Manager not initialized',
+                                ToastLevel.warning,
+                              );
+                              return;
+                            }
+                            
+                            final hasCashDrawer = await USB!.isCashDrawerConnected();
+                            showToastMessage(
+                              context,
+                              hasCashDrawer 
+                                  ? 'Cash drawer detected' 
+                                  : 'No cash drawer detected',
+                              hasCashDrawer ? ToastLevel.success : ToastLevel.warning,
+                            );
+                          },
+                          icon: const Icon(Icons.search),
+                          label: const Text('Detect Drawer'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.surfaceVariant,
+                            foregroundColor: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Connected Devices Section - Now with real device data
           Card(
             elevation: 2,
             child: Padding(
@@ -845,19 +998,103 @@ class _DebugPageState extends State<DebugPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Connected Devices',
+                    'Connected USB Devices',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text('No active connections'),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: USB?.refreshDeviceList() ?? Future.value([]),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      } else if (snapshot.hasError) {
+                        return Text('Error: ${snapshot.error}');
+                      } else if (snapshot.data == null || snapshot.data!.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text('No USB devices connected'),
+                        );
+                      }
+                      
+                      // Display connected devices in a list
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          final device = snapshot.data![index];
+                          return ListTile(
+                            dense: true,
+                            leading: Icon(
+                              device['isCashDrawer'] == true 
+                                  ? Icons.point_of_sale 
+                                  : Icons.usb,
+                              color: device['isConnected'] == true
+                                  ? theme.colorScheme.primary
+                                  : Colors.grey,
+                            ),
+                            title: Text(
+                              device['deviceName'] ?? 'Unknown Device',
+                              style: theme.textTheme.titleSmall,
+                            ),
+                            subtitle: Text(
+                              'VID: ${device['vendorId']?.toRadixString(16) ?? 'N/A'}, '
+                              'PID: ${device['productId']?.toRadixString(16) ?? 'N/A'}',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                            trailing: device['isConnected'] == true
+                                ? const Icon(Icons.link, color: Colors.green, size: 16)
+                                : null,
+                            onTap: () async {
+                              try {
+                                if (device['isConnected'] == true) {
+                                  showToastMessage(
+                                    context,
+                                    'Device already connected',
+                                    ToastLevel.info,
+                                  );
+                                } else {
+                                  final connected = await USB!.connectToDevice(device['deviceId']);
+                                  if (connected) {
+                                    setState(() {}); // Refresh UI
+                                    showToastMessage(
+                                      context,
+                                      'Connected to ${device['deviceName']}',
+                                      ToastLevel.success,
+                                    );
+                                  } else {
+                                    showToastMessage(
+                                      context,
+                                      'Failed to connect to device',
+                                      ToastLevel.error,
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                showToastMessage(
+                                  context,
+                                  'Connection error: $e',
+                                  ToastLevel.error,
+                                );
+                              }
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
                       onPressed: () {
-                        // Refresh connection status
+                        setState(() {}); // This will refresh the FutureBuilder
                       },
                       icon: const Icon(Icons.refresh, size: 16),
                       label: const Text('Refresh'),
@@ -953,16 +1190,15 @@ class _DebugPageState extends State<DebugPage>
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     List<Widget> tabs = const [
-      Tab(text: 'Global Variables', icon: const Icon(Icons.code)),
-      Tab(text: 'Database', icon: const Icon(Icons.storage)),
-      Tab(text: 'Logs Watcher', icon: const Icon(Icons.bug_report)),
-      Tab(text: 'Connection', icon: const Icon(Icons.network_check)),
+      Tab(text: 'Global Variables', icon: Icon(Icons.code)),
+      Tab(text: 'Database', icon: Icon(Icons.storage)),
+      Tab(text: 'Logs Watcher', icon: Icon(Icons.bug_report)),
+      Tab(text: 'Connection', icon: Icon(Icons.network_check)),
     ];
 
 

@@ -106,12 +106,29 @@ class _CashierPageState extends State<CashierPage> {
       );
       AudioManager().playSound(soundPath: 'assets/sounds/click.mp3');
       if (existingIndex >= 0) {
-        // Product already exists, increase quantity
+        if (cart[existingIndex].containsKey("set")) {
+          // If the product is a set, need to process again
+          for (int i = 0; i < product["set"].length; i++) {
+            bool checkItemNotExist = true;
+            for (int k = 0; k < cart[existingIndex]["set"].length; k++) {
+              if (cart[existingIndex]["set"][k]["id"] ==
+                  product["set"][i]["id"]) {
+                increaseQuantity(cart[existingIndex]["set"][i]);
+                checkItemNotExist = false;
+                break;
+              }
+            }
+            if (checkItemNotExist) {
+              cart[existingIndex]["set"].add(product["set"][i]);
+            }
+          }
+        }
         increaseQuantity(cart[existingIndex]);
       } else {
         // New product, add to cart with quantity 1
         Map<String, dynamic> newItem = {...product, "quantity": 1};
         newItem = processItem(newItem);
+        newItem["selected"] = false;
         cart.add(newItem);
       }
     });
@@ -220,6 +237,7 @@ class _CashierPageState extends State<CashierPage> {
         {}; // Map to track product ID -> quantity selected
     int totalSelectedQuantity = 0;
     int totalMaxQuantity = setDetail['total_max_qty'] ?? 0;
+    int setId = setDetail['id'];
     String setType = setDetail['set'];
 
     // Get group names from inventory.setCatalog
@@ -573,6 +591,7 @@ class _CashierPageState extends State<CashierPage> {
                                                                 soundPath:
                                                                     'assets/sounds/click.mp3',
                                                               );
+
                                                           if (currentQty > 0) {
                                                             setState(() {
                                                               item['quantity'] =
@@ -685,6 +704,32 @@ class _CashierPageState extends State<CashierPage> {
                                                               }
                                                               selectedQuantities[id] =
                                                                   item['quantity'];
+
+                                                              for (var checkCart
+                                                                  in cart) {
+                                                                if (checkCart.containsKey("set")) {
+                                                                  for (
+                                                                    int i = 0;
+                                                                    i <
+                                                                        checkCart["set"]
+                                                                            .length;
+                                                                    i++
+                                                                  ) {
+                                                                    if ((checkCart["set"][i]["id"] ==
+                                                                            item["id"]) &&
+                                                                        (checkCart["set"][i]["quantity"] +
+                                                                                selectedQuantities[id] >=
+                                                                            inventory.productCatalog![item["id"]]![item['type']])) {
+                                                                      outOfStockItems[item["id"]] = {
+                                                                        item['type']:
+                                                                            true,
+                                                                      };
+                                                                      break;
+                                                                    }
+                                                                  }
+                                                                  break;
+                                                                }
+                                                              }
                                                             });
                                                           }
                                                         },
@@ -772,6 +817,7 @@ class _CashierPageState extends State<CashierPage> {
                 ),
               ),
               actions: [
+                // camcel button
                 TextButtonWithSound(
                   onPressed: () {
                     for (var id in outOfStockId) {
@@ -783,6 +829,7 @@ class _CashierPageState extends State<CashierPage> {
                   },
                   child: Text(LOCALIZATION.localize("main_word.cancel")),
                 ),
+                // add button
                 ElevatedButtonWithSound(
                   onPressed:
                       totalSelectedQuantity == totalMaxQuantity
@@ -1039,7 +1086,6 @@ class _CashierPageState extends State<CashierPage> {
   // BUG: This function is not working as expected
   // Sometimes it turn exception for SET in _buildOrderSummary on !cart[index]["selected"]
   void toggleSelection(int index) {
-    CASHIER_LOGS.debug('Toggle Check: ${CASHIER_LOGS.list2str(cart)}');
     setState(() {
       cart[index]["selected"] = !cart[index]["selected"];
     });
@@ -1178,7 +1224,7 @@ class _CashierPageState extends State<CashierPage> {
       // );
 
       if (checkAllTransaction) {
-        // Launch receipt processing in the backgroundb 
+        // Launch receipt processing in the backgroundb
         Future.microtask(() async {
           try {
             // First check and request permissions with timeout
@@ -1228,6 +1274,10 @@ class _CashierPageState extends State<CashierPage> {
             }
           }
         });
+
+        if (paymentMethod == 'cash') {
+          var drawer = await checkAndOpenCashDrawer(context);
+        }
 
         return true;
       }
@@ -2018,6 +2068,7 @@ class _CashierPageState extends State<CashierPage> {
     );
   }
 
+  
   Widget _buildOrderSummary() {
     // Calculate total
     double totalPrice = cart.fold(
@@ -2036,6 +2087,9 @@ class _CashierPageState extends State<CashierPage> {
     ).format(currentOrderId);
 
     final List<int> outOfStockId = [];
+    
+    // Check if any items are selected
+    bool hasSelectedItems = cart.any((item) => item["selected"] == true);
 
     return Container(
       decoration: BoxDecoration(
@@ -2089,24 +2143,87 @@ class _CashierPageState extends State<CashierPage> {
                     ),
                   ],
                 ),
-                // Right side: Items count
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8, // Smaller
-                    vertical: 2, // Smaller
-                  ),
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    "$totalItems ${LOCALIZATION.localize("main_word.items")}",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11, // Smaller font
+                // Right side: Items count and trash button when items are selected
+                Row(
+                  children: [
+                    // Trash button - only visible when items are selected
+                    if (hasSelectedItems)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: InkWell(
+                          onTap: () async {
+                            await AudioManager().playSound(
+                              soundPath: 'assets/sounds/click.mp3',
+                            );
+                            setState(() {
+                              // Create a list of items to keep (not selected)
+                              List<Map<String, dynamic>> newCart = [];
+                              
+                              // Remove selected items from cart and outOfStockItems
+                              for (int i = 0; i < cart.length; i++) {
+                                if (cart[i]["selected"] != true) {
+                                  newCart.add(cart[i]);
+                                } else {
+                                  // If removing item, also remove from outOfStockItems if present
+                                  if (cart[i].containsKey("id") && 
+                                      outOfStockItems.containsKey(cart[i]["id"])) {
+                                        if(cart[i].containsKey("set")){
+                                          for (var setItem in cart[i]["set"]) {
+                                            outOfStockItems.remove(setItem["id"]);
+                                          }
+                                        }
+                                    outOfStockItems.remove(cart[i]["id"]);
+                                  }
+                                }
+                              }
+                              
+                              // Replace cart with filtered list
+                              cart = newCart;
+                            });
+                            
+                            // Show confirmation toast
+                            showToastMessage(
+                              context,
+                              LOCALIZATION.localize("cashier_page.items_removed"),
+                              ToastLevel.info,
+                              position: ToastPosition.topRight,
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    
+                    // Items count badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8, // Smaller
+                        vertical: 2, // Smaller
+                      ),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        "$totalItems ${LOCALIZATION.localize("main_word.items")}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11, // Smaller font
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -2533,6 +2650,7 @@ class _CashierPageState extends State<CashierPage> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
