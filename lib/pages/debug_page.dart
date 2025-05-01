@@ -18,7 +18,6 @@ class _DebugPageState extends State<DebugPage>
   final TextEditingController _tableSearchController = TextEditingController();
   final TextEditingController _sqlQueryController = TextEditingController();
 
-
   // For global variables inspection
   final Map<String, dynamic> _globalVariables = {};
 
@@ -54,14 +53,17 @@ class _DebugPageState extends State<DebugPage>
     _globalVariables['canVibrate'] = canVibrate;
     _globalVariables['test_set_parsing'] =
         await inventory.getAllProductsAndSets();
-    _globalVariables['test_set_parsing'] = _globalVariables['test_set_parsing'][_globalVariables['test_set_parsing'].length - 1];
+    _globalVariables['test_set_parsing'] =
+        _globalVariables['test_set_parsing'][_globalVariables['test_set_parsing']
+                .length -
+            1];
     setState(() {});
   }
 
   Future<void> _loadDatabaseTables() async {
     setState(() => _isLoading = true);
     try {
-      final dbQuery = DatabaseQuery(db: DB);
+      final dbQuery = DatabaseQuery(db: DB, LOGS: APP_LOGS);
       final result = await dbQuery.getTableNames();
       setState(() {
         _tables = result;
@@ -85,7 +87,7 @@ class _DebugPageState extends State<DebugPage>
     });
 
     try {
-      final dbQuery = DatabaseQuery(db: DB);
+      final dbQuery = DatabaseQuery(db: DB, LOGS: APP_LOGS);
       final data = await dbQuery.fetchAllData(tableName);
       setState(() {
         _tableData = data;
@@ -107,7 +109,7 @@ class _DebugPageState extends State<DebugPage>
 
     setState(() => _isLoading = true);
     try {
-      final dbQuery = DatabaseQuery(db: DB);
+      final dbQuery = DatabaseQuery(db: DB, LOGS: APP_LOGS);
       final data = await dbQuery.query(_sqlQueryController.text);
       setState(() {
         _selectedTable = "Custom Query";
@@ -514,16 +516,23 @@ class _DebugPageState extends State<DebugPage>
         void loadLogFiles() async {
           setState(() => isLoadingLogs = true);
           try {
-            final Directory appDocDir = await getApplicationDocumentsDirectory();
+            final Directory appDocDir =
+                await getApplicationDocumentsDirectory();
             final String logDirPath = '${appDocDir.path}/logs';
             final Directory logDir = Directory(logDirPath);
-            
+
             if (await logDir.exists()) {
               List<FileSystemEntity> files = await logDir.list().toList();
-              files = files.where((file) => 
-                file.path.endsWith('.txt') || file.path.endsWith('.log') || 
-                !file.path.contains('.')).toList();
-              
+              files =
+                  files
+                      .where(
+                        (file) =>
+                            file.path.endsWith('.txt') ||
+                            file.path.endsWith('.log') ||
+                            !file.path.contains('.'),
+                      )
+                      .toList();
+
               setState(() {
                 logFiles.clear();
                 logFiles.addAll(files);
@@ -566,37 +575,50 @@ class _DebugPageState extends State<DebugPage>
         // Function to clear a log file
         void clearLogFile() async {
           if (selectedLogPath == null) return;
-          
+
           // Show confirmation dialog
-          final confirmed = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Clear Log File'),
-              content: Text('Are you sure you want to clear the log file "$selectedLogName"?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Clear'),
-                ),
-              ],
-            ),
-          ) ?? false;
-          
+          final confirmed =
+              await showDialog<bool>(
+                context: context,
+                builder:
+                    (context) => AlertDialog(
+                      title: const Text('Clear Log File'),
+                      content: Text(
+                        'Are you sure you want to clear the log file "$selectedLogName"?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('Clear'),
+                        ),
+                      ],
+                    ),
+              ) ??
+              false;
+
           if (!confirmed) return;
-          
+
           try {
             await File(selectedLogPath!).writeAsString('');
             setState(() {
               selectedLogContent = '';
             });
-            showToastMessage(context, '$selectedLogName cleared successfully', ToastLevel.success);
+            showToastMessage(
+              context,
+              '$selectedLogName cleared successfully',
+              ToastLevel.success,
+            );
           } catch (e) {
             APP_LOGS.error('Failed to clear log file: $e');
-            showToastMessage(context, 'Failed to clear $selectedLogName', ToastLevel.error);
+            showToastMessage(
+              context,
+              'Failed to clear $selectedLogName',
+              ToastLevel.error,
+            );
           }
         }
 
@@ -640,33 +662,35 @@ class _DebugPageState extends State<DebugPage>
                     ),
                     const SizedBox(height: 8),
                     Expanded(
-                      child: isLoadingLogs
-                          ? const Center(child: CircularProgressIndicator())
-                          : logFiles.isEmpty
+                      child:
+                          isLoadingLogs
+                              ? const Center(child: CircularProgressIndicator())
+                              : logFiles.isEmpty
                               ? Center(child: Text('No log files found'))
                               : ListView.builder(
-                                  itemCount: logFiles.length,
-                                  itemBuilder: (context, index) {
-                                    final file = logFiles[index];
-                                    final fileName = file.path.split('/').last;
-                                    return ListTile(
-                                      title: Text(fileName),
-                                      leading: const Icon(Icons.description),
-                                      selected: selectedLogName == fileName,
-                                      onTap: () => viewLogFile(file),
-                                      tileColor: selectedLogName == fileName
-                                          ? theme.colorScheme.primaryContainer
-                                          : null,
-                                    );
-                                  },
-                                ),
+                                itemCount: logFiles.length,
+                                itemBuilder: (context, index) {
+                                  final file = logFiles[index];
+                                  final fileName = file.path.split('/').last;
+                                  return ListTile(
+                                    title: Text(fileName),
+                                    leading: const Icon(Icons.description),
+                                    selected: selectedLogName == fileName,
+                                    onTap: () => viewLogFile(file),
+                                    tileColor:
+                                        selectedLogName == fileName
+                                            ? theme.colorScheme.primaryContainer
+                                            : null,
+                                  );
+                                },
+                              ),
                     ),
                   ],
                 ),
               ),
-              
+
               const SizedBox(width: 16),
-              
+
               // Right column - Log content display
               Expanded(
                 flex: 2,
@@ -696,8 +720,14 @@ class _DebugPageState extends State<DebugPage>
                               IconButton(
                                 icon: const Icon(Icons.copy),
                                 onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: selectedLogContent!));
-                                  showToastMessage(context, 'Log copied to clipboard', ToastLevel.info);
+                                  Clipboard.setData(
+                                    ClipboardData(text: selectedLogContent!),
+                                  );
+                                  showToastMessage(
+                                    context,
+                                    'Log copied to clipboard',
+                                    ToastLevel.info,
+                                  );
                                 },
                                 tooltip: 'Copy log to clipboard',
                               ),
@@ -707,30 +737,31 @@ class _DebugPageState extends State<DebugPage>
                     ),
                     const SizedBox(height: 8),
                     Expanded(
-                      child: isLoadingLogs
-                          ? const Center(child: CircularProgressIndicator())
-                          : selectedLogContent == null
+                      child:
+                          isLoadingLogs
+                              ? const Center(child: CircularProgressIndicator())
+                              : selectedLogContent == null
                               ? Center(
-                                  child: Text(
-                                    'Select a log file to view',
-                                    style: theme.textTheme.bodyLarge,
-                                  ),
-                                )
+                                child: Text(
+                                  'Select a log file to view',
+                                  style: theme.textTheme.bodyLarge,
+                                ),
+                              )
                               : Card(
-                                  elevation: 4,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: SingleChildScrollView(
-                                      child: Text(
-                                        selectedLogContent!,
-                                        style: const TextStyle(
-                                          fontFamily: 'monospace',
-                                          fontSize: 12,
-                                        ),
+                                elevation: 4,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: SingleChildScrollView(
+                                    child: Text(
+                                      selectedLogContent!,
+                                      style: const TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontSize: 12,
                                       ),
                                     ),
                                   ),
                                 ),
+                              ),
                     ),
                   ],
                 ),
@@ -742,11 +773,9 @@ class _DebugPageState extends State<DebugPage>
     );
   }
 
-
-
   Widget _buildConnectionTab() {
     final theme = Theme.of(context);
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -759,7 +788,7 @@ class _DebugPageState extends State<DebugPage>
             ),
           ),
           const SizedBox(height: 12),
-          
+
           GridView.count(
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
@@ -776,13 +805,16 @@ class _DebugPageState extends State<DebugPage>
                   return _buildConnectionCard(
                     icon: Icons.bluetooth,
                     title: 'Bluetooth',
-                    description: isBluetoothOn ? 'Bluetooth is ON' : 'Bluetooth is OFF',
+                    description:
+                        isBluetoothOn ? 'Bluetooth is ON' : 'Bluetooth is OFF',
                     buttonLabel: 'Test',
                     buttonIcon: Icons.bluetooth_searching,
                     statusColor: isBluetoothOn ? Colors.green : Colors.red,
                     onPressed: () async {
                       try {
-                        final isEnabled = await btPrinter?.bluetoothTestingDialog(context) ?? false;
+                        final isEnabled =
+                            await btPrinter?.bluetoothTestingDialog(context) ??
+                            false;
                         if (isEnabled) {
                           showToastMessage(
                             context,
@@ -808,7 +840,7 @@ class _DebugPageState extends State<DebugPage>
                   );
                 },
               ),
-              
+
               // Wi-Fi Connection Management
               _buildConnectionCard(
                 icon: Icons.wifi,
@@ -818,17 +850,19 @@ class _DebugPageState extends State<DebugPage>
                 buttonIcon: Icons.settings,
                 onPressed: null,
               ),
-              
+
               // USB Connection Section with Status
               Builder(
                 builder: (context) {
-                  final bool isUsbInitialized = USB != null && USB!.isInitialized;
+                  final bool isUsbInitialized =
+                      USB != null && USB!.isInitialized;
                   return _buildConnectionCard(
                     icon: Icons.usb,
                     title: 'USB',
-                    description: isUsbInitialized 
-                        ? 'USB Manager initialized' 
-                        : 'USB Manager not initialized',
+                    description:
+                        isUsbInitialized
+                            ? 'USB Manager initialized'
+                            : 'USB Manager not initialized',
                     buttonLabel: 'Manage',
                     buttonIcon: Icons.settings,
                     statusColor: isUsbInitialized ? Colors.green : Colors.red,
@@ -845,7 +879,8 @@ class _DebugPageState extends State<DebugPage>
                       } else {
                         // Show USB device management dialog
                         try {
-                          final selectedDevice = await USB!.showUsbManagementDialog(context);
+                          final selectedDevice = await USB!
+                              .showUsbManagementDialog(context);
                           if (selectedDevice != null) {
                             showToastMessage(
                               context,
@@ -864,9 +899,9 @@ class _DebugPageState extends State<DebugPage>
                       }
                     },
                   );
-                }
+                },
               ),
-              
+
               // Network Connectivity Diagnostics
               _buildConnectionCard(
                 icon: Icons.language,
@@ -878,9 +913,9 @@ class _DebugPageState extends State<DebugPage>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Cash Drawer Control Card
           Card(
             elevation: 2,
@@ -891,7 +926,10 @@ class _DebugPageState extends State<DebugPage>
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.point_of_sale, color: theme.colorScheme.primary),
+                      Icon(
+                        Icons.point_of_sale,
+                        color: theme.colorScheme.primary,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Cash Drawer Controls',
@@ -902,7 +940,7 @@ class _DebugPageState extends State<DebugPage>
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   Row(
                     children: [
                       Expanded(
@@ -916,7 +954,7 @@ class _DebugPageState extends State<DebugPage>
                               );
                               return;
                             }
-                            
+
                             try {
                               var drawer = await USB!.openCashDrawer();
                               final drawerOpened = drawer.$1;
@@ -962,14 +1000,17 @@ class _DebugPageState extends State<DebugPage>
                               );
                               return;
                             }
-                            
-                            final hasCashDrawer = await USB!.isCashDrawerConnected();
+
+                            final hasCashDrawer =
+                                await USB!.isCashDrawerConnected();
                             showToastMessage(
                               context,
-                              hasCashDrawer 
-                                  ? 'Cash drawer detected' 
+                              hasCashDrawer
+                                  ? 'Cash drawer detected'
                                   : 'No cash drawer detected',
-                              hasCashDrawer ? ToastLevel.success : ToastLevel.warning,
+                              hasCashDrawer
+                                  ? ToastLevel.success
+                                  : ToastLevel.warning,
                             );
                           },
                           icon: const Icon(Icons.search),
@@ -986,9 +1027,9 @@ class _DebugPageState extends State<DebugPage>
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Connected Devices Section - Now with real device data
           Card(
             elevation: 2,
@@ -1016,13 +1057,14 @@ class _DebugPageState extends State<DebugPage>
                         );
                       } else if (snapshot.hasError) {
                         return Text('Error: ${snapshot.error}');
-                      } else if (snapshot.data == null || snapshot.data!.isEmpty) {
+                      } else if (snapshot.data == null ||
+                          snapshot.data!.isEmpty) {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8.0),
                           child: Text('No USB devices connected'),
                         );
                       }
-                      
+
                       // Display connected devices in a list
                       return ListView.builder(
                         shrinkWrap: true,
@@ -1033,12 +1075,13 @@ class _DebugPageState extends State<DebugPage>
                           return ListTile(
                             dense: true,
                             leading: Icon(
-                              device['isCashDrawer'] == true 
-                                  ? Icons.point_of_sale 
+                              device['isCashDrawer'] == true
+                                  ? Icons.point_of_sale
                                   : Icons.usb,
-                              color: device['isConnected'] == true
-                                  ? theme.colorScheme.primary
-                                  : Colors.grey,
+                              color:
+                                  device['isConnected'] == true
+                                      ? theme.colorScheme.primary
+                                      : Colors.grey,
                             ),
                             title: Text(
                               device['deviceName'] ?? 'Unknown Device',
@@ -1049,9 +1092,14 @@ class _DebugPageState extends State<DebugPage>
                               'PID: ${device['productId']?.toRadixString(16) ?? 'N/A'}',
                               style: theme.textTheme.bodySmall,
                             ),
-                            trailing: device['isConnected'] == true
-                                ? const Icon(Icons.link, color: Colors.green, size: 16)
-                                : null,
+                            trailing:
+                                device['isConnected'] == true
+                                    ? const Icon(
+                                      Icons.link,
+                                      color: Colors.green,
+                                      size: 16,
+                                    )
+                                    : null,
                             onTap: () async {
                               try {
                                 if (device['isConnected'] == true) {
@@ -1061,7 +1109,9 @@ class _DebugPageState extends State<DebugPage>
                                     ToastLevel.info,
                                   );
                                 } else {
-                                  final connected = await USB!.connectToDevice(device['deviceId']);
+                                  final connected = await USB!.connectToDevice(
+                                    device['deviceId'],
+                                  );
                                   if (connected) {
                                     setState(() {}); // Refresh UI
                                     showToastMessage(
@@ -1120,7 +1170,7 @@ class _DebugPageState extends State<DebugPage>
     Color? statusColor,
   }) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 2,
       child: Padding(
@@ -1175,9 +1225,15 @@ class _DebugPageState extends State<DebugPage>
                     child: ElevatedButton.icon(
                       onPressed: onPressed,
                       icon: Icon(buttonIcon, size: 14),
-                      label: Text(buttonLabel, style: const TextStyle(fontSize: 12)),
+                      label: Text(
+                        buttonLabel,
+                        style: const TextStyle(fontSize: 12),
+                      ),
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 0,
+                        ),
                       ),
                     ),
                   ),
@@ -1201,7 +1257,6 @@ class _DebugPageState extends State<DebugPage>
       Tab(text: 'Connection', icon: Icon(Icons.network_check)),
     ];
 
-
     List<Widget> children = [
       _buildGlobalVariablesTab(),
       _buildDatabaseTab(),
@@ -1210,6 +1265,7 @@ class _DebugPageState extends State<DebugPage>
     ];
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Debug & Inspection'),
         backgroundColor: theme.colorScheme.primary,
@@ -1225,12 +1281,7 @@ class _DebugPageState extends State<DebugPage>
         // Optional: Add other AppBar customizations
         centerTitle: true,
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: children,
-      ),
+      body: TabBarView(controller: _tabController, children: children),
     );
   }
-
-
 }

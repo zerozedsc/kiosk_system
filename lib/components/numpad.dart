@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-
 import 'buttonswithsound.dart';
 
-class NumPad extends StatelessWidget {
+class NumPad extends StatefulWidget {
   final Function(String) onValueChanged;
   final String initialValue;
   final bool allowDecimal;
@@ -15,100 +14,103 @@ class NumPad extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<NumPad> createState() => _NumPadState();
+}
+
+class _NumPadState extends State<NumPad> {
+  late String currentValue;
+
+  @override
+  void initState() {
+    super.initState();
+    currentValue = widget.initialValue;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      child: buildNumpad(context),
+    final buttons =
+        widget.allowDecimal
+            ? ['7', '8', '9', '4', '5', '6', '1', '2', '3', 'C', '0', '.']
+            : ['7', '8', '9', '4', '5', '6', '1', '2', '3', 'C', '0', ''];
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.45, // Lower height
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: buttons.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 2,
+            crossAxisSpacing: 3,
+            childAspectRatio: 2.85, // Wider and shorter buttons
+          ),
+          itemBuilder: (context, index) {
+            final text = buttons[index];
+            return _buildButton(text);
+          },
+        ),
+      ),
     );
   }
 
-  Widget buildNumpad(BuildContext context) {
-    List<String> buttons;
-    if (allowDecimal) {
-      buttons = [
-        '7', '8', '9',
-        '4', '5', '6',
-        '1', '2', '3',
-        'C', '0', '.'
-      ];
+  Widget _buildButton(String text) {
+    if (text.isEmpty) return const SizedBox.shrink();
+
+    Color bgColor;
+    Color textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+
+    if (text == 'C') {
+      bgColor = Colors.red.shade100;
+      textColor = Colors.red.shade700;
+    } else if (text == '.') {
+      bgColor = Colors.blue.shade50;
+      textColor = Colors.blue.shade700;
     } else {
-      buttons = [
-        '7', '8', '9',
-        '4', '5', '6',
-        '1', '2', '3',
-        'C', '0', ''
-      ];
+      bgColor = Theme.of(context).colorScheme.surfaceVariant;
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3, // 3 columns
-        childAspectRatio: 2.5, // Kept your original aspect ratio
-        crossAxisSpacing: 4,
-        mainAxisSpacing: 4,
+    return ElevatedButtonWithSound(
+      onPressed: () => _handleInput(text),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: bgColor,
+        foregroundColor: textColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: EdgeInsets.zero,
+        elevation: 1,
       ),
-      itemCount: buttons.length,
-      itemBuilder: (context, index) {
-        return _buildNumpadButton(buttons[index], context);
-      },
-    );
-  }
-
-  Widget _buildNumpadButton(String text, BuildContext context) {
-    if (text.isEmpty) return const SizedBox();
-
-    Color? backgroundColor;
-    if (text == 'C') backgroundColor = Colors.red.shade100;
-
-    return Padding(
-      padding: const EdgeInsets.all(4),
-      child: SizedBox(
-        width: double.infinity,
-        height: double.infinity,
-        child: ElevatedButtonWithSound(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: backgroundColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          onPressed: text.isEmpty ? null : () => _handleButtonPress(text),
-          child: FittedBox(
-            fit: BoxFit.contain,
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 30,
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-              ),
-            ),
+      child: Center(
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 20, // Smaller font
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
     );
   }
 
-  void _handleButtonPress(String value) {
-    String currentValue = initialValue;
-
-    if (value == 'C') {
-      currentValue = '';
-    } else if (value == '.') {
-      if (!currentValue.contains('.') && currentValue.isNotEmpty) {
-        currentValue += '.';
-      }
-    } else {
-      if (value == '0' && currentValue.isEmpty) {
-        // Do nothing for leading zero
+  void _handleInput(String value) {
+    setState(() {
+      if (value == 'C') {
+        currentValue = '';
+      } else if (value == '.') {
+        if (!currentValue.contains('.') && currentValue.isNotEmpty) {
+          currentValue += '.';
+        }
       } else {
-        currentValue += value;
+        if (!(value == '0' && currentValue.isEmpty)) {
+          currentValue += value;
+        }
       }
-    }
 
-    onValueChanged(currentValue);
+      widget.onValueChanged(currentValue);
+    });
   }
 }
-
-

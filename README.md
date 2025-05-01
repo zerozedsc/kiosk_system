@@ -87,6 +87,11 @@ Stores information about predefined sets.
     - Use kiosk_product.category to include all items in that category. If category string contain space, change with #
     1. "1 Corndog + 3 POPIA Mix" -> `"PIECE,15 _1,POPIA#F50 _3"`
     2. "4 POPIA Mix" -> `PIECE,POPIA#F50 _4`
+    3. "Corndog Goreng" -> `PIECE,15 PIECE` _means current existed product will be sold in piece_
+
+
+
+
 4. if total quantity set in string not tally with max_quantity, it will be invalid
 5. lastly create one function(param: setString, setMaxQty) to get this kind of data for example `setString = "PIECE,15 _1,POPIA#F50 _3"`:
    ```
@@ -106,6 +111,7 @@ Stores information about predefined sets.
 
 6. For this kiosk, They also will sell a fried(goreng) product from a frozen(`kiosk_product`) database, but for now i dont know how to take fried product from this database (*right now i have created `total_pieces_used` for goreng used*)
    - For now, im thinking to set goreng product in `SET` 
+
 ---
 
 ## **4. Coupon System**

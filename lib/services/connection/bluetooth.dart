@@ -191,7 +191,6 @@ Future<void> checkPermissionsAndInitBluetooth(BuildContext context) async {
   }
 }
 
-
 class BtPrinter {
   late StreamSubscription<bool> _isScanningSubscription;
   late StreamSubscription<bpp.BlueState> _blueStateSubscription;
@@ -733,7 +732,7 @@ class BtPrinter {
         );
         showToastMessage(
           context,
-          '${LOCALIZATION.localize("bluetooth_services.attempt_printer_connect")}...',
+          '${LOCALIZATION.localize("bluetooth_service.attempt_printer_connect")}...',
           ToastLevel.warning,
           position: ToastPosition.topRight,
         );
@@ -828,6 +827,12 @@ class BtPrinter {
           // Invoice details
           commandFutures.add(
             escCommand.text(content: "INVOICE NO: ${receiptData['id']}\n"),
+          );
+          commandFutures.add(
+            escCommand.text(
+              content:
+                  "CASHIER NAME:[${receiptData['cashierId']}] ${receiptData['cashierName']}\n",
+            ),
           );
           commandFutures.add(
             escCommand.text(content: "DATE: ${receiptData['datetime']}\n"),

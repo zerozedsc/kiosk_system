@@ -8,6 +8,7 @@ export 'package:flutter_typeahead/flutter_typeahead.dart';
 export 'package:path_provider/path_provider.dart';
 export 'package:html/parser.dart';
 export 'package:fluttertoast/fluttertoast.dart';
+export 'package:bcrypt/bcrypt.dart';
 
 export 'dart:convert';
 export 'dart:math';
@@ -21,6 +22,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart'; // Add this import statement
 import 'dart:io';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:path_provider/path_provider.dart';
@@ -128,21 +130,7 @@ ThemeData mainThemeData = ThemeData(
   ),
 );
 
-String getCurrentFunctionName(StackTrace currentStack) {
-  String stackTraceString = currentStack.toString();
-  // Extract the function name from stack trace
-  RegExp regExp = RegExp(r'#0\s+([^(]+)');
-  Match? match = regExp.firstMatch(stackTraceString);
-  if (match != null) {
-    String fullName = match.group(1)?.trim() ?? 'unknown';
-    // Remove the trailing parenthesis if present
-    fullName = fullName.replaceAll(RegExp(r'\($'), '');
-    return fullName;
-  }
-  return 'unknown_function';
-}
-
-/// Function to play a sound effect
+/// Class to play a sound effect
 class AudioManager {
   static final AudioManager _instance = AudioManager._internal();
   final AudioPlayer _player = AudioPlayer();
@@ -189,17 +177,40 @@ class ConfigService {
     final Directory appDocDir = await getApplicationDocumentsDirectory();
     final String configPath = '${appDocDir.path}/$_configFileName';
 
+    // Path to the config in assets
+    final String assetConfigPath = _assetConfigPath;
+
     // Check if the file already exists
     if (FileSystemEntity.typeSync(configPath) ==
         FileSystemEntityType.notFound) {
       // If not, load from assets and copy to the writable directory
-      print("$configPath not found. Copying from assets.");
-      final ByteData data = await rootBundle.load(_assetConfigPath);
+      APP_LOGS.debug("$configPath not found. Copying from assets.");
+      final ByteData data = await rootBundle.load(assetConfigPath);
       final List<int> bytes = data.buffer.asUint8List(
         data.offsetInBytes,
         data.lengthInBytes,
       );
       await File(configPath).writeAsBytes(bytes);
+      APP_LOGS.info("Config file copied to writable directory.");
+    } else {
+      // Check if the assets config has been updated
+      final ByteData assetData = await rootBundle.load(assetConfigPath);
+      final List<int> assetBytes = assetData.buffer.asUint8List(
+        assetData.offsetInBytes,
+        assetData.lengthInBytes,
+      );
+      final List<int> writableBytes = await File(configPath).readAsBytes();
+
+      // Compare the bytes to determine if an update is needed
+      if (!compareBytes(assetBytes, writableBytes) && DEBUG) {
+        APP_LOGS.warning(
+          "Config in assets has been updated. Replacing the writable config file...",
+        );
+        await File(configPath).writeAsBytes(assetBytes);
+        APP_LOGS.info("Config file updated successfully.");
+      } else {
+        APP_LOGS.info("Config file in writable directory is up to date.");
+      }
     }
   }
 
@@ -467,4 +478,123 @@ class LoggingService {
   /// Print a message to the console.
   void console(dynamic message) =>
       print('[$_logName] ${_formatMessage(message)}');
+}
+
+// MISC FUNCTION
+String getCurrentFunctionName(StackTrace currentStack) {
+  String stackTraceString = currentStack.toString();
+  // Extract the function name from stack trace
+  RegExp regExp = RegExp(r'#0\s+([^(]+)');
+  Match? match = regExp.firstMatch(stackTraceString);
+  if (match != null) {
+    String fullName = match.group(1)?.trim() ?? 'unknown';
+    // Remove the trailing parenthesis if present
+    fullName = fullName.replaceAll(RegExp(r'\($'), '');
+    return fullName;
+  }
+  return 'unknown_function';
+}
+
+/// Compares two lists of integers byte by byte.
+///
+/// Returns `true` if the two lists contain exactly the same elements in the same order.
+/// Returns `false` if the lists have different lengths or if any corresponding elements differ.
+///
+/// Parameters:
+/// - [list1]: First list of integers to compare
+/// - [list2]: Second list of integers to compare
+///
+/// Returns: `bool` indicating whether the lists are identical
+bool compareBytes(List<int> list1, List<int> list2) {
+  if (list1.length != list2.length) return false;
+
+  // Use Uint8List views for faster comparison if possible
+  final bytes1 = list1 is Uint8List ? list1 : Uint8List.fromList(list1);
+  final bytes2 = list2 is Uint8List ? list2 : Uint8List.fromList(list2);
+
+  // Compare byte length first (quick exit)
+  final len = bytes1.length;
+
+  // Process multiple bytes at once with 8-byte chunks where possible
+  const chunkSize = 8;
+  int i = 0;
+  for (; i <= len - chunkSize; i += chunkSize) {
+    // Compare chunks of 8 bytes at a time
+    if (bytes1[i] != bytes2[i] ||
+        bytes1[i + 1] != bytes2[i + 1] ||
+        bytes1[i + 2] != bytes2[i + 2] ||
+        bytes1[i + 3] != bytes2[i + 3] ||
+        bytes1[i + 4] != bytes2[i + 4] ||
+        bytes1[i + 5] != bytes2[i + 5] ||
+        bytes1[i + 6] != bytes2[i + 6] ||
+        bytes1[i + 7] != bytes2[i + 7]) {
+      return false;
+    }
+  }
+
+  // Handle remaining bytes
+  for (; i < len; i++) {
+    if (bytes1[i] != bytes2[i]) return false;
+  }
+
+  return true;
+}
+
+dynamic removeImageKey(dynamic data) {
+  if (data is Map) {
+    return Map.fromEntries(
+      data.entries
+          .where((e) => e.key != 'image')
+          .map((e) => MapEntry(e.key, removeImageKey(e.value))),
+    );
+  } else if (data is List) {
+    return data.map(removeImageKey).toList();
+  }
+  return data;
+}
+
+/// Returns the current date/time or converts a timestamp to a formatted string.
+///
+/// [format] - The date format string (e.g. 'yyyy-MM-dd HH:mm:ss').
+///   Common patterns:
+///     'yyyy-MM-dd' (2025-04-23)
+///     'yyyy-MM-dd HH:mm:ss' (2025-04-23 14:30:00)
+///     'HH:mm:ss' (14:30:00)
+///
+/// [timestamp] - If true, returns the current time as a Unix timestamp (seconds since epoch).
+///
+/// [convertTimestamp] - If true, converts the [inputTimestamp] to the given [format].
+///
+/// [inputTimestamp] - The timestamp (in seconds or milliseconds) to convert if [convertTimestamp] is true.
+///
+/// Example usage:
+///   getDateTime(format: 'yyyy-MM-dd') // '2025-04-23'
+///
+///   getDateTime(timestamp: true) // 1713878400
+///
+///   getDateTime(format: 'yyyy-MM-dd', convertTimestamp: true, inputTimestamp: 1713878400) // '2025-04-23'
+dynamic getDateTimeNow({
+  String format = 'yyyy-MM-dd',
+  bool timestamp = false,
+  bool convertTimestamp = false,
+  int? inputTimestamp,
+}) {
+  if (timestamp) {
+    // Return current Unix timestamp (seconds since epoch)
+    return DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  }
+  if (convertTimestamp && inputTimestamp != null) {
+    // Convert timestamp (seconds or ms) to formatted string
+    DateTime dt;
+    if (inputTimestamp > 9999999999) {
+      // Assume milliseconds
+      dt = DateTime.fromMillisecondsSinceEpoch(inputTimestamp);
+    } else {
+      // Assume seconds
+      dt = DateTime.fromMillisecondsSinceEpoch(inputTimestamp * 1000);
+    }
+    return DateFormat(format).format(dt);
+  }
+  // Default: return formatted current date/time
+  return DateFormat(format).format(DateTime.now());
 }

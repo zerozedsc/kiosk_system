@@ -1,7 +1,6 @@
 import '../configs/configs.dart';
 import '../pages/pages.dart';
 
-
 // Page controller optimized for landscape orientation
 class PageControllerClass extends StatefulWidget {
   final Map<String, dynamic>? state;
@@ -17,29 +16,31 @@ class PageControllerClassState extends State<PageControllerClass> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  late final List<Widget> _children;
+  final ValueNotifier<int> cashierReloadNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<int> inventoryReloadNotifier = ValueNotifier<int>(0);
 
+  late final List<Widget> _children;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Force landscape orientation
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    
+
     // Initialize variables safely
     initialQuery = widget.state?['query'] ?? '';
     _currentIndex = initialQuery.isNotEmpty ? 1 : 0;
-    
+
     // Set up page children
     _children = [
       const HomePage(),
       // Add placeholder widgets for other pages
-      const CashierPage(),
-      const Center(child: Text('Inventory Page')),
+      CashierPage(reloadNotifier: cashierReloadNotifier),
+      InventoryPage(reloadNotifier: inventoryReloadNotifier),
       const Center(child: Text('More Options')),
       const DebugPage(),
     ];
@@ -52,10 +53,20 @@ class PageControllerClassState extends State<PageControllerClass> {
     super.dispose();
   }
 
-  void onTabTapped(int index) async{
+  void onTabTapped(int index) async {
     // Simple index change without page controller
     await AudioManager().playSound(soundPath: 'assets/sounds/click.mp3');
     if (_currentIndex != index) {
+      if (index == 1) {
+        // Cashier tab index
+        cashierReloadNotifier.value++;
+      }
+
+      if (index == 2) {
+        // Inventory tab index
+        inventoryReloadNotifier.value++;
+      }
+
       setState(() {
         _currentIndex = index;
       });
@@ -94,45 +105,43 @@ class PageControllerClassState extends State<PageControllerClass> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       key: _scaffoldKey,
       body: SafeArea(
         child: Row(
           children: [
             // NavigationRail on the left side
             NavigationRail(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: onTabTapped,
-            labelType: NavigationRailLabelType.all,
-            destinations: navRailItems,
-            backgroundColor: Colors.white,
-            selectedIconTheme: IconThemeData(
-              color: primaryColor, // Use primaryColor directly
+              selectedIndex: _currentIndex,
+              onDestinationSelected: onTabTapped,
+              labelType: NavigationRailLabelType.all,
+              destinations: navRailItems,
+              backgroundColor: Colors.white,
+              selectedIconTheme: IconThemeData(
+                color: primaryColor, // Use primaryColor directly
+              ),
+              unselectedIconTheme: IconThemeData(color: Colors.grey.shade600),
+              selectedLabelTextStyle: TextStyle(
+                color: primaryColor, // Use primaryColor directly
+                fontWeight: FontWeight.bold,
+              ),
+              minWidth: 85,
+              useIndicator: true,
+              indicatorColor: primaryColor.withOpacity(
+                0.2,
+              ), // Use primaryColor directly
             ),
-            unselectedIconTheme: IconThemeData(
-              color: Colors.grey.shade600,
-            ),
-            selectedLabelTextStyle: TextStyle(
-              color: primaryColor, // Use primaryColor directly
-              fontWeight: FontWeight.bold,
-            ),
-            minWidth: 85,
-            useIndicator: true,
-            indicatorColor: primaryColor.withOpacity(0.2), // Use primaryColor directly
-          ),
-            
+
             // Vertical divider between navigation rail and content
             VerticalDivider(
               thickness: 1,
               width: 1,
               color: Colors.grey.withOpacity(0.2),
             ),
-            
+
             // Main content area
             Expanded(
-              child: IndexedStack(
-                index: _currentIndex,
-                children: _children,
-              ),
+              child: IndexedStack(index: _currentIndex, children: _children),
             ),
           ],
         ),

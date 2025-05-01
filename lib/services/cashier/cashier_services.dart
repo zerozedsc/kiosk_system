@@ -6,7 +6,6 @@ export '../../services/permission_handler.dart';
 export '../../services/connection/bluetooth.dart';
 export '../../services/connection/usb.dart';
 
-
 // ignore: non_constant_identifier_names
 late LoggingService CASHIER_LOGS;
 
@@ -26,7 +25,7 @@ Map<String, dynamic> processItem(Map<String, dynamic> item) {
     item['type'] = "total_stocks";
   }
 
-  APP_LOGS.console(item);
+  CASHIER_LOGS.console(item);
 
   return item;
 }
@@ -47,9 +46,9 @@ Map<String, dynamic> processItem(Map<String, dynamic> item) {
 ///   ```
 Future<int> getLatestTransactionId() async {
   try {
-    final dbQuery = DatabaseQuery(db: DB);
+    final dbQuery = DatabaseQuery(db: DB, LOGS: CASHIER_LOGS);
     final result = await dbQuery.query(
-      'SELECT MAX(id) as max_id FROM inventory_transaction',
+      'SELECT MAX(id) as max_id FROM kiosk_transaction',
     );
 
     // Extract the maximum ID value from the result
@@ -60,7 +59,7 @@ Future<int> getLatestTransactionId() async {
     // If no records exist or max_id is null, return 0
     return 0;
   } catch (e) {
-    APP_LOGS.error('Error retrieving latest transaction ID: $e');
+    CASHIER_LOGS.error('Error retrieving latest transaction ID: $e');
     return 0;
   }
 }
@@ -91,32 +90,79 @@ Future<int> getLatestTransactionId() async {
 ///   );
 ///   ```
 Future<bool> recordTransaction({
-  required int timestamp,
-  required String receiptList,
-  required String paymentMethod,
-  required double totalAmount,
+  required String employeeId,
+  required Map<String, dynamic> processTransactionData,
 }) async {
   try {
-    final dbQuery = DatabaseQuery(db: DB);
+    final dbQuery = DatabaseQuery(db: DB, LOGS: CASHIER_LOGS);
 
-    // Create the transaction data map
-    final transactionData = {
-      'timestamp': timestamp,
-      'receipt_list': receiptList,
-      'payment_method': paymentMethod,
-      'total_amount': totalAmount,
+    Map<String, dynamic> kiosktransaction = {
+      'employee_id': employeeId,
+      'date': getDateTimeNow(format: "yyyy-MM-dd"),
+      'data': processTransactionData['inventoryTransaction'],
     };
 
+    try {
+      final List<Map<String, dynamic>> fetchInventoryData = await dbQuery
+          .fetchDataWhere(
+            'inventory_transaction',
+            'date = ? AND employee_id = ?',
+            [kiosktransaction['date'], employeeId],
+          );
+
+      if (fetchInventoryData.isEmpty) {
+        kiosktransaction["data"] = json.encode(kiosktransaction["data"]);
+        await dbQuery.insertNewData('inventory_transaction', kiosktransaction);
+      } else {
+        Map<String, dynamic> inventoryData = fetchInventoryData.first;
+        CASHIER_LOGS.debug(
+          "check kioskTransaction[data]: ${CASHIER_LOGS.map2str(kiosktransaction['data'])}",
+        );
+        Map<String, dynamic> data =
+            json.decode(inventoryData['data']) as Map<String, dynamic>;
+        kiosktransaction['data'].forEach((key, value) {
+          if (data.containsKey(key)) {
+            data[key]["total_stocks"] += value["total_stocks"];
+            data[key]["total_pieces_used"] += value["total_pieces_used"];
+          } else {
+            data[key] = {
+              "total_stocks": value["total_stocks"],
+              "total_pieces_used": value["total_pieces_used"],
+            };
+          }
+        });
+
+        kiosktransaction["data"] = json.encode(data);
+        await dbQuery.updateData(
+          'inventory_transaction',
+          inventoryData['id'],
+          kiosktransaction,
+        );
+      }
+    } catch (e) {
+      CASHIER_LOGS.error(
+        'Error processing inventory transaction:',
+        e,
+        StackTrace.current,
+      );
+    }
+
     // Insert the transaction and get the ID
-    await dbQuery.insertNewData('kiosk_transaction', transactionData);
+    await dbQuery.insertNewData('kiosk_transaction', {
+      'employee_id': employeeId,
+      'timestamp': processTransactionData['timestamp_int'],
+      'receipt_list': json.encode(processTransactionData['receiptList']),
+      'payment_method': processTransactionData['paymentMethod'],
+      'total_amount': processTransactionData['totalAmount'],
+    });
 
     // Get the latest transaction ID (which should be the one we just created)
     final newId = await getLatestTransactionId();
 
-    APP_LOGS.info('Transaction recorded with ID: $newId');
+    CASHIER_LOGS.info('Transaction recorded with ID: $newId');
     return true;
   } catch (e, stackTrace) {
-    APP_LOGS.error('Failed to record transaction', e, stackTrace);
+    CASHIER_LOGS.error('Failed to record transaction', e, stackTrace);
     return false;
   }
 }
@@ -150,7 +196,7 @@ Future<bool> recordTransaction({
 ///   ```
 Future<Map<String, dynamic>> getDiscountItems(String couponCode) async {
   try {
-    final dbQuery = DatabaseQuery(db: DB);
+    final dbQuery = DatabaseQuery(db: DB, LOGS: CASHIER_LOGS);
 
     // Check if coupon exists and is valid
     final List<Map<String, dynamic>> results = await dbQuery.fetchDataWhere(
@@ -207,7 +253,7 @@ Future<Map<String, dynamic>> getDiscountItems(String couponCode) async {
 
         targetIds = idStrings.map((s) => int.parse(s)).toList();
       } catch (e) {
-        APP_LOGS.warning(
+        CASHIER_LOGS.warning(
           'Failed to parse product_id: ${couponData['product_id']}',
         );
       }
@@ -229,7 +275,7 @@ Future<Map<String, dynamic>> getDiscountItems(String couponCode) async {
 
         targetIds = idStrings.map((s) => int.parse(s)).toList();
       } catch (e) {
-        APP_LOGS.warning('Failed to parse set_id: ${couponData['set_id']}');
+        CASHIER_LOGS.warning('Failed to parse set_id: ${couponData['set_id']}');
       }
     }
 
@@ -243,27 +289,31 @@ Future<Map<String, dynamic>> getDiscountItems(String couponCode) async {
       'raw_data': couponData, // Include original data for debugging if needed
     };
   } catch (e) {
-    APP_LOGS.error('Error retrieving discount information: $e');
+    CASHIER_LOGS.error('Error retrieving discount information: $e');
     return {'valid': false, 'message': 'Error processing coupon: $e'};
   }
 }
 
 /// Processes a receipt and prints it using the Bluetooth printer.
-Future<bool> processReceipt({required BuildContext context, required dynamic currentPrinter, required Map<String, dynamic> receiptData}) async {
+Future<bool> processReceipt({
+  required BuildContext context,
+  required dynamic currentPrinter,
+  required Map<String, dynamic> receiptData,
+}) async {
   try {
-    
-
     Map<String, dynamic> processReceipt = {
       'id': receiptData['id'],
       'itemList': receiptData['receiptList'],
       'datetime': receiptData['datetime'],
       'paymentMethod': receiptData['paymentMethod'],
       'totalAmount': receiptData['totalAmount'],
+      'employeeId': receiptData['employeeId'],
+      'employeeName': receiptData['employeeName'],
     };
 
     for (final entry in receiptData['receiptData'].entries) {
-        processReceipt[entry.key] = entry.value; 
-      }
+      processReceipt[entry.key] = entry.value;
+    }
 
     await btPrinter?.printReceiptBluetooth(
       context: context,
@@ -273,17 +323,17 @@ Future<bool> processReceipt({required BuildContext context, required dynamic cur
 
     return true;
   } catch (e) {
-    APP_LOGS.error('Error processing receipt: $e');
+    CASHIER_LOGS.error('Error processing receipt: $e');
     return false;
   }
 }
 
 /// Checks if a cash drawer is connected and attempts to open it.
-/// 
+///
 /// Returns a tuple with:
 /// - A boolean indicating success or failure
 /// - A string message describing the result
-/// 
+///
 /// Example:
 ///   ```dart
 ///   final (success, message) = await checkAndOpenCashDrawer();
@@ -299,10 +349,10 @@ Future<(bool, String)> checkAndOpenCashDrawer(BuildContext context) async {
     if (USB == null || !USB!.isInitialized) {
       CASHIER_LOGS.warning('USB Manager not initialized');
       showToastMessage(
-        context, 
+        context,
         LOCALIZATION.localize("usb_service.permission_message"),
         ToastLevel.error,
-        position: ToastPosition.topRight
+        position: ToastPosition.topRight,
       );
       return (false, 'USB Manager not initialized');
     }
@@ -315,7 +365,7 @@ Future<(bool, String)> checkAndOpenCashDrawer(BuildContext context) async {
         context,
         LOCALIZATION.localize("usb_service.no_cash_drawer"),
         ToastLevel.warning,
-        position: ToastPosition.topRight
+        position: ToastPosition.topRight,
       );
       return (false, 'No cash drawer detected');
     }
@@ -325,12 +375,14 @@ Future<(bool, String)> checkAndOpenCashDrawer(BuildContext context) async {
     final (success, commandUsed) = await USB!.openCashDrawer();
 
     if (success) {
-      CASHIER_LOGS.info('Cash drawer opened successfully using command: $commandUsed');
+      CASHIER_LOGS.info(
+        'Cash drawer opened successfully using command: $commandUsed',
+      );
       showToastMessage(
         context,
         LOCALIZATION.localize("usb_service.drawer_opened"),
         ToastLevel.success,
-        position: ToastPosition.topRight
+        position: ToastPosition.topRight,
       );
       return (true, 'Cash drawer opened successfully');
     } else {
@@ -339,7 +391,7 @@ Future<(bool, String)> checkAndOpenCashDrawer(BuildContext context) async {
         context,
         LOCALIZATION.localize('usb_service.drawer_failed'),
         ToastLevel.error,
-        position: ToastPosition.topRight
+        position: ToastPosition.topRight,
       );
       return (false, 'Failed to open cash drawer');
     }
@@ -349,7 +401,7 @@ Future<(bool, String)> checkAndOpenCashDrawer(BuildContext context) async {
       context,
       '${LOCALIZATION.localize("usb_service.connection_failed")}: ${e.toString()}',
       ToastLevel.error,
-      position: ToastPosition.topRight
+      position: ToastPosition.topRight,
     );
     return (false, 'Error: ${e.toString()}');
   }

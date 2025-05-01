@@ -17,17 +17,18 @@ class DatabaseViewPageState extends State<DatabaseViewPage> {
   void initState() {
     super.initState();
     _loadData(
-        tableName:
-            "spot_table"); // Load initial data when the widget is initialized
+      tableName: "spot_table",
+    ); // Load initial data when the widget is initialized
   }
 
   // Method to load data from the database with an optional search query
   Future<void> _loadData({required String? tableName}) async {
-    final DatabaseQuery dbQuery = DatabaseQuery(db: DB);
+    final DatabaseQuery dbQuery = DatabaseQuery(db: DB, LOGS: APP_LOGS);
 
     // Use the query to fetch specific data if provided, otherwise fetch all data
-    final List<Map<String, dynamic>> data =
-        await dbQuery.fetchAllData(tableName);
+    final List<Map<String, dynamic>> data = await dbQuery.fetchAllData(
+      tableName!,
+    );
     _tableName = tableName ?? "";
 
     setState(() {
@@ -66,6 +67,7 @@ class DatabaseViewPageState extends State<DatabaseViewPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Database View'),
         bottom: PreferredSize(
@@ -81,42 +83,44 @@ class DatabaseViewPageState extends State<DatabaseViewPage> {
                 ),
                 prefixIcon: const Icon(Icons.search),
               ),
-              onChanged: (text) =>
-                  _onSearchChanged(), // Trigger search on text change
+              onChanged:
+                  (text) => _onSearchChanged(), // Trigger search on text change
             ),
           ),
         ),
       ),
-      body: _data.isEmpty
-          ? const Center(child: Text('No data found'))
-          : ListView.builder(
-              itemCount: _data.length,
-              itemBuilder: (BuildContext context, int index) {
-                final Map<String, dynamic> item =
-                    Map<String, dynamic>.from(_data[index]);
-                final String tableFirstLetter = _tableName[0].toUpperCase();
-                int id = item['id'];
-                item["img_link"] = 'assets/images/$tableFirstLetter$id.jpg';
+      body:
+          _data.isEmpty
+              ? const Center(child: Text('No data found'))
+              : ListView.builder(
+                itemCount: _data.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final Map<String, dynamic> item = Map<String, dynamic>.from(
+                    _data[index],
+                  );
+                  final String tableFirstLetter = _tableName[0].toUpperCase();
+                  int id = item['id'];
+                  item["img_link"] = 'assets/images/$tableFirstLetter$id.jpg';
 
-                return InkWell(
-                  onTap: () {
-                    // Navigate to RelatedTabScreen with the selected item data
-                    // Navigator.push(
-                    //   context,
-                    //   MaterialPageRoute(
-                    //     builder: (context) =>
-                    //         RelatedTabScreen(data: item, dataType: _tableName),
-                    //   ),
-                    // );
-                    print(item);
-                  },
-                  child: ListTile(
-                    title: Text(item['id'].toString()),
-                    subtitle: Text(item['name'].toString()),
-                  ),
-                );
-              },
-            ),
+                  return InkWell(
+                    onTap: () {
+                      // Navigate to RelatedTabScreen with the selected item data
+                      // Navigator.push(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //     builder: (context) =>
+                      //         RelatedTabScreen(data: item, dataType: _tableName),
+                      //   ),
+                      // );
+                      print(item);
+                    },
+                    child: ListTile(
+                      title: Text(item['id'].toString()),
+                      subtitle: Text(item['name'].toString()),
+                    ),
+                  );
+                },
+              ),
     );
   }
 

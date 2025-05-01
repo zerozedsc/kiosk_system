@@ -10,7 +10,6 @@ late String DBNAME;
 late Database DB;
 late List<String> existPrefList;
 
-
 /// A utility class that manages SQLite database connections for the kiosk system.
 ///
 /// The `DatabaseConnection` class provides static methods for initializing, checking,
@@ -41,9 +40,9 @@ late List<String> existPrefList;
 ///
 /// ## Asset Database Management
 ///
-/// When the application starts, the class checks if the database file exists in the 
-/// writable directory. If not, it copies the file from the assets folder. If the file 
-/// already exists, it compares the file from assets with the existing one to determine 
+/// When the application starts, the class checks if the database file exists in the
+/// writable directory. If not, it copies the file from the assets folder. If the file
+/// already exists, it compares the file from assets with the existing one to determine
 /// if an update is needed.
 ///
 /// This approach allows for easy database updates by simply replacing the asset file
@@ -68,11 +67,10 @@ class DatabaseConnection {
     return db;
   }
 
-
   /// Initialize the database from the assets folder to the application documents directory.
   ///
-  /// This method checks if the database exists in the writable directory and copies it from 
-  /// assets if it doesn't exist. If the database does exist, it compares the asset version 
+  /// This method checks if the database exists in the writable directory and copies it from
+  /// assets if it doesn't exist. If the database does exist, it compares the asset version
   /// with the writable version to determine if an update is needed.
   ///
   /// [dbName] The name of the database file.
@@ -90,7 +88,9 @@ class DatabaseConnection {
     // Check if the database already exists in the writable directory
     if (FileSystemEntity.typeSync(dbPath) == FileSystemEntityType.notFound) {
       // Copy the database from assets to the documents directory
-      APP_LOGS.warning("Database not found in writable directory. Copying from assets...");
+      APP_LOGS.warning(
+        "Database not found in writable directory. Copying from assets...",
+      );
       ByteData data = await rootBundle.load(assetsDbPath);
       List<int> bytes = data.buffer.asUint8List(
         data.offsetInBytes,
@@ -109,7 +109,7 @@ class DatabaseConnection {
       List<int> writableBytes = await File(dbPath).readAsBytes();
 
       // Compare the bytes to determine if an update is needed
-      if (!_compareBytes(assetBytes, writableBytes) && DEBUG) {
+      if (!compareBytes(assetBytes, writableBytes) && DEBUG) {
         APP_LOGS.warning(
           "Database in assets has been updated. Replacing the writable database...",
         );
@@ -122,51 +122,6 @@ class DatabaseConnection {
 
     // Open the database
     return await openDatabase(dbPath, version: _dbVersion ?? 1);
-  }
-
-  /// Compares two lists of integers byte by byte.
-  ///
-  /// Returns `true` if the two lists contain exactly the same elements in the same order.
-  /// Returns `false` if the lists have different lengths or if any corresponding elements differ.
-  ///
-  /// Parameters:
-  /// - [list1]: First list of integers to compare
-  /// - [list2]: Second list of integers to compare
-  ///
-  /// Returns: `bool` indicating whether the lists are identical
-  static bool _compareBytes(List<int> list1, List<int> list2) {
-    if (list1.length != list2.length) return false;
-    
-    // Use Uint8List views for faster comparison if possible
-    final bytes1 = list1 is Uint8List ? list1 : Uint8List.fromList(list1);
-    final bytes2 = list2 is Uint8List ? list2 : Uint8List.fromList(list2);
-    
-    // Compare byte length first (quick exit)
-    final len = bytes1.length;
-    
-    // Process multiple bytes at once with 8-byte chunks where possible
-    const chunkSize = 8;
-    int i = 0;
-    for (; i <= len - chunkSize; i += chunkSize) {
-      // Compare chunks of 8 bytes at a time
-      if (bytes1[i] != bytes2[i] || 
-          bytes1[i+1] != bytes2[i+1] ||
-          bytes1[i+2] != bytes2[i+2] ||
-          bytes1[i+3] != bytes2[i+3] ||
-          bytes1[i+4] != bytes2[i+4] ||
-          bytes1[i+5] != bytes2[i+5] ||
-          bytes1[i+6] != bytes2[i+6] ||
-          bytes1[i+7] != bytes2[i+7]) {
-        return false;
-      }
-    }
-    
-    // Handle remaining bytes
-    for (; i < len; i++) {
-      if (bytes1[i] != bytes2[i]) return false;
-    }
-    
-    return true;
   }
 
   /// Retrieves the current size of the database file in human-readable format.
@@ -192,15 +147,15 @@ class DatabaseConnection {
     try {
       Directory documentsDirectory = await getApplicationDocumentsDirectory();
       String dbPath = join(documentsDirectory.path, dbName);
-      
+
       // Get file stats to determine size
       final dbFile = File(dbPath);
       if (!await dbFile.exists()) {
         return "0 KB";
       }
-      
+
       final int sizeInBytes = await dbFile.length();
-      
+
       // Convert bytes to appropriate unit
       if (sizeInBytes < 1024) {
         return "$sizeInBytes B";
@@ -219,9 +174,7 @@ class DatabaseConnection {
       return "Unknown size";
     }
   }
-
 }
-
 
 /// A utility class for performing database operations in a structured way.
 ///
@@ -245,16 +198,17 @@ class DatabaseConnection {
 /// final featured = await dbQuery.getRandomRow('products');
 /// ```
 class DatabaseQuery {
-  const DatabaseQuery({required this.db});
+  const DatabaseQuery({required this.db, required this.LOGS});
   final Database db;
-  
+  final LoggingService LOGS;
+
   /// Checks if a database connection is valid and functional.
-  /// 
-  /// This method verifies if the database connection can execute a simple 
+  ///
+  /// This method verifies if the database connection can execute a simple
   /// query successfully, confirming both existence and connectivity.
-  /// 
+  ///
   /// Returns:
-  ///   A [Future<bool>] that resolves to `true` if the database is 
+  ///   A [Future<bool>] that resolves to `true` if the database is
   ///   connected and functioning properly, or `false` otherwise.
   Future<bool> isDatabaseConnected() async {
     try {
@@ -262,7 +216,7 @@ class DatabaseQuery {
       await db.rawQuery('SELECT 1');
       return true;
     } catch (e) {
-      APP_LOGS.error('Database connection check failed: $e');
+      LOGS.error('Database connection check failed: $e');
       return false;
     }
   }
@@ -283,15 +237,15 @@ class DatabaseQuery {
       );
       return result.isNotEmpty;
     } catch (e) {
-      APP_LOGS.error('Error checking if table exists: $e');
+      LOGS.error('Error checking if table exists: $e');
       return false;
     }
   }
 
   /// Fetches a list of all table names in the database.
   ///
-  /// This method queries the SQLite system tables to retrieve the names of all 
-  /// user-created tables in the database. It does not return system tables like 
+  /// This method queries the SQLite system tables to retrieve the names of all
+  /// user-created tables in the database. It does not return system tables like
   /// 'sqlite_sequence', 'android_metadata', etc.
   ///
   /// Returns:
@@ -308,17 +262,17 @@ class DatabaseQuery {
       final result = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%'",
       );
-      
+
       // Extract table names from the query result
       return result.map((row) => row['name'] as String).toList();
     } catch (e) {
-      APP_LOGS.error('Error fetching table names: $e');
+      LOGS.error('Error fetching table names: $e');
       return [];
     }
   }
 
   /// Executes a raw SQL query and returns the result as a list of maps.
-  /// 
+  ///
   /// Each map in the list represents a row in the result set, with column names as keys
   /// and column values as values.
   ///
@@ -348,9 +302,9 @@ class DatabaseQuery {
   Future<void> printOneInTable(String tableName) async {
     try {
       final data = await db.query(tableName);
-      APP_LOGS.console(data[0]);
+      LOGS.console(data[0]);
     } catch (e) {
-      APP_LOGS.error('An error occurred while shows data from $tableName: $e');
+      LOGS.error('An error occurred while shows data from $tableName: $e');
     }
   }
 
@@ -371,10 +325,10 @@ class DatabaseQuery {
     try {
       final data = await db.query(tableName);
       for (var row in data) {
-        APP_LOGS.console(row); // Process each row as needed
+        LOGS.console(row); // Process each row as needed
       }
     } catch (e) {
-      APP_LOGS.error('An error occurred while shows data from $tableName: $e');
+      LOGS.error('An error occurred while shows data from $tableName: $e');
     }
   }
 
@@ -464,7 +418,7 @@ class DatabaseQuery {
       );
     } catch (e) {
       // error-handling
-      APP_LOGS.error('An error occurred while inserting data: $e');
+      LOGS.error('An error occurred while inserting data: $e');
     }
   }
 
@@ -482,12 +436,12 @@ class DatabaseQuery {
   ///
   /// Throws:
   ///   No exceptions are thrown as they are caught internally and logged to the console.
-  Future<List<Map<String, dynamic>>> fetchAllData(tableName) async {
+  Future<List<Map<String, dynamic>>> fetchAllData(String tableName) async {
     try {
       return await db.query(tableName);
     } catch (e) {
       // error-handling
-      APP_LOGS.error('An error occurred while fetching data: $e');
+      LOGS.error('An error occurred while fetching data: $e');
       return [];
     }
   }
@@ -511,7 +465,10 @@ class DatabaseQuery {
   ///     print('Found user: ${user['name']}');
   ///   }
   ///   ```
-  Future<Map<String, dynamic>?> fetchOneById(String tableName, dynamic id) async {
+  Future<Map<String, dynamic>?> fetchOneById(
+    String tableName,
+    dynamic id,
+  ) async {
     try {
       final List<Map<String, dynamic>> result = await db.query(
         tableName,
@@ -522,7 +479,7 @@ class DatabaseQuery {
 
       return result.isNotEmpty ? result.first : null;
     } catch (e) {
-      APP_LOGS.error('An error occurred while fetching data by ID: $e');
+      LOGS.error('An error occurred while fetching data by ID: $e');
       return null;
     }
   }
@@ -548,12 +505,12 @@ class DatabaseQuery {
   ///   ```dart
   ///   // Get all product names
   ///   final productNames = await getColumnData('products', 'name');
-  ///   
+  ///
   ///   // Get email addresses for active users only
   ///   final emails = await getColumnData(
-  ///     'users', 
-  ///     'email', 
-  ///     where: 'is_active = ?', 
+  ///     'users',
+  ///     'email',
+  ///     where: 'is_active = ?',
   ///     whereArgs: [1]
   ///   );
   ///   ```
@@ -572,11 +529,11 @@ class DatabaseQuery {
         whereArgs: whereArgs,
         orderBy: orderBy,
       );
-      
+
       // Extract the values from the column
       return result.map((row) => row[columnName]).toList();
     } catch (e) {
-      APP_LOGS.error('An error occurred while fetching column data: $e');
+      LOGS.error('An error occurred while fetching column data: $e');
       return [];
     }
   }
@@ -611,7 +568,7 @@ class DatabaseQuery {
         data,
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      
+
       // Fetch the complete record using the returned ID
       final List<Map<String, dynamic>> result = await db.query(
         tableName,
@@ -619,10 +576,10 @@ class DatabaseQuery {
         whereArgs: [id],
         limit: 1,
       );
-      
+
       return result.isNotEmpty ? result.first : null;
     } catch (e) {
-      APP_LOGS.error('Error in insertAndRetrieve: $e');
+      LOGS.error('Error in insertAndRetrieve: $e');
       return null;
     }
   }
@@ -654,6 +611,19 @@ class DatabaseQuery {
   ///     limit: 10
   ///   );
   ///   ```
+  ///
+  /// output:
+  /// ```
+  ///   [
+  ///       {'id': 1, 'username': 'Alice
+  /// ', 'status': 'active', 'age': 25},
+  ///      {'id': 2, 'username': 'Bob', 'status': 'active', 'age': 30},
+  ///  ... up to 10 records
+  /// ]
+  /// ```
+  ///
+  /// Throws:
+  ///    Catches and logs any exceptions that might occur during the query.
   Future<List<Map<String, dynamic>>> fetchDataWhere(
     String tableName,
     String where,
@@ -672,7 +642,7 @@ class DatabaseQuery {
         offset: offset,
       );
     } catch (e) {
-      APP_LOGS.error('An error occurred while fetching filtered data: $e');
+      LOGS.error('An error occurred while fetching filtered data: $e');
       return [];
     }
   }
@@ -694,7 +664,7 @@ class DatabaseQuery {
   ///   ```dart
   ///   // Count all products
   ///   final totalProducts = await countRows('products');
-  ///   
+  ///
   ///   // Count products in a specific category
   ///   final activeProducts = await countRows(
   ///     'products',
@@ -712,10 +682,10 @@ class DatabaseQuery {
         'SELECT COUNT(*) as count FROM $tableName${where != null ? ' WHERE $where' : ''}',
         whereArgs,
       );
-      
+
       return result.first['count'] as int;
     } catch (e) {
-      APP_LOGS.error('Error counting rows in $tableName: $e');
+      LOGS.error('Error counting rows in $tableName: $e');
       return 0;
     }
   }
@@ -741,8 +711,8 @@ class DatabaseQuery {
   ///   final userData = await fetchColumnsById('users', 5, ['name', 'email']);
   ///   ```
   Future<Map<String, dynamic>?> fetchCustomById(
-    String tableName, 
-    dynamic id, 
+    String tableName,
+    dynamic id,
     List<String>? columns,
   ) async {
     try {
@@ -756,32 +726,42 @@ class DatabaseQuery {
 
       return result.isNotEmpty ? result.first : null;
     } catch (e) {
-      APP_LOGS.error('An error occurred while fetching columns by ID: $e');
+      LOGS.error('An error occurred while fetching columns by ID: $e');
       return null;
     }
   }
 
   /// Updates a record in the database with new data
-  /// 
+  ///
   /// Takes a [tableName] string, [id] of the record to update, and [newData] map containing
   /// column values to update in the record.
-  /// 
+  ///
   /// Executes an SQL UPDATE operation on the specified table where id matches.
   /// Any errors during the update operation are caught and printed to the console.
-  /// 
+  ///
   /// Example usage:
   /// ```dart
   /// await dbInstance.updateData('users', 5, {'name': 'John', 'email': 'john@example.com'});
   /// ```
-  Future<void> updateData(tableName, id, Map<String, dynamic> newData) async {
+  Future<void> updateData(
+    tableName,
+    whereCol,
+    Map<String, dynamic> newData, {
+    String whereColName = "id",
+  }) async {
     try {
-      await db.update(tableName, newData, where: 'id = ?', whereArgs: [id]);
+      await db.update(
+        tableName,
+        newData,
+        where: '$whereColName=?',
+        whereArgs: [whereCol],
+      );
     } catch (e) {
       // error-handling
-      APP_LOGS.error('An error occurred while updating data: $e');
+      LOGS.error('An error occurred while updating data: $e');
     }
   }
-  
+
   /// Updates a single cell in a database table.
   ///
   /// This method allows updating a specific column value for a record identified by its ID.
@@ -803,7 +783,12 @@ class DatabaseQuery {
   ///   ```dart
   ///   await updateCell('products', 42, 'in_stock', 0);
   ///   ```
-  Future<void> updateCell(String tableName, dynamic id, String columnName, dynamic value) async {
+  Future<void> updateCell(
+    String tableName,
+    dynamic id,
+    String columnName,
+    dynamic value,
+  ) async {
     try {
       await db.update(
         tableName,
@@ -812,7 +797,7 @@ class DatabaseQuery {
         whereArgs: [id],
       );
     } catch (e) {
-      APP_LOGS.error('An error occurred while updating cell data: $e');
+      LOGS.error('An error occurred while updating cell data: $e');
     }
   }
 
@@ -834,10 +819,7 @@ class DatabaseQuery {
       await db.delete(tableName, where: 'id = ?', whereArgs: [id]);
     } catch (e) {
       // error-handling
-      APP_LOGS.error('An error occurred while deleting data: $e');
+      LOGS.error('An error occurred while deleting data: $e');
     }
   }
-
 }
-
-

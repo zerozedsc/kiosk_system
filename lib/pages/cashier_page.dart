@@ -11,13 +11,14 @@ import '../components/buttonswithsound.dart';
 import 'package:intl/intl.dart';
 
 class CashierPage extends StatefulWidget {
-  const CashierPage({super.key});
+  final ValueNotifier<int> reloadNotifier;
+  const CashierPage({super.key, required this.reloadNotifier});
 
   @override
-  _CashierPageState createState() => _CashierPageState();
+  CashierPageState createState() => CashierPageState();
 }
 
-class _CashierPageState extends State<CashierPage> {
+class CashierPageState extends State<CashierPage> {
   // init variable
   bool firstLoad = true;
   bool _isLoading = false;
@@ -25,6 +26,11 @@ class _CashierPageState extends State<CashierPage> {
   // cashier variable
   int currentOrderId = 1; // Order ID tracking variable
   String selectedCategory = "";
+  String employeeID = "RZ0000";
+  String employeeName = "RZ";
+  bool checkPrintReceipt =
+      globalAppConfig["cashier"]["bluetooth_printer"]["enabled"];
+  bool checkCashDrawer = globalAppConfig["cashier"]["cash_drawer"]["enabled"];
   List<String> categories = [];
   List<Map<String, dynamic>> productsStream = [];
   List<Map<String, dynamic>> cart = [];
@@ -43,7 +49,7 @@ class _CashierPageState extends State<CashierPage> {
             await LoggingService(logName: "cashier_logs").initialize();
       }
 
-      currentOrderId = await getLatestTransactionId() + 1;
+      int getLatestId = await getLatestTransactionId() + 1;
 
       List<Map<String, dynamic>> loadedProducts =
           await inventory.getAllProductsAndSets();
@@ -72,6 +78,7 @@ class _CashierPageState extends State<CashierPage> {
           selectedCategory = categories[0];
         }
         _isLoading = false; // Optional: if you added a loading state
+        currentOrderId = getLatestId;
       });
 
       CASHIER_LOGS.info('Products reloaded: ${productsStream.length} items');
@@ -96,9 +103,31 @@ class _CashierPageState extends State<CashierPage> {
     super.initState();
     _loadProductsData();
     firstLoad = false;
+    widget.reloadNotifier.addListener(() async {
+      await _reloadAll();
+    });
+    // CASHIER_LOGS.info('CashierPage initialized');
   }
 
-  void addToCart(Map<String, dynamic> product) {
+  @override
+  void dispose() {
+    widget.reloadNotifier.removeListener(() async {
+      await _reloadAll();
+    });
+    super.dispose();
+  }
+
+  Future<void> _reloadAll() async {
+    await _loadProductsData();
+    setState(() {
+      cart.clear();
+      outOfStockItems.clear();
+      receiptData.clear();
+      // Reset other variables if needed
+    });
+  }
+
+  void _addToCart(Map<String, dynamic> product) {
     setState(() {
       // Check if the product already exists in the cart
       int existingIndex = cart.indexWhere(
@@ -113,7 +142,7 @@ class _CashierPageState extends State<CashierPage> {
             for (int k = 0; k < cart[existingIndex]["set"].length; k++) {
               if (cart[existingIndex]["set"][k]["id"] ==
                   product["set"][i]["id"]) {
-                increaseQuantity(cart[existingIndex]["set"][i]);
+                _increaseQuantity(cart[existingIndex]["set"][i]);
                 checkItemNotExist = false;
                 break;
               }
@@ -123,7 +152,7 @@ class _CashierPageState extends State<CashierPage> {
             }
           }
         }
-        increaseQuantity(cart[existingIndex]);
+        _increaseQuantity(cart[existingIndex]);
       } else {
         // New product, add to cart with quantity 1
         Map<String, dynamic> newItem = {...product, "quantity": 1};
@@ -134,7 +163,7 @@ class _CashierPageState extends State<CashierPage> {
     });
   }
 
-  void removeFromCart(int index) {
+  void _removeFromCart(int index) {
     setState(() {
       cart.removeAt(index);
     });
@@ -511,23 +540,23 @@ class _CashierPageState extends State<CashierPage> {
                                                                   .transparent,
                                                               BlendMode.srcOver,
                                                             ),
-                                                    child: CardImage(
-                                                      imageSource:
-                                                          item['image'],
-                                                      fit: BoxFit.cover,
-                                                      backgroundColor:
-                                                          Colors.grey[300],
-                                                      placeholderWidget:
-                                                          const Center(
-                                                            child: Icon(
+                                                    child:
+                                                        item['image']
+                                                                    is Uint8List &&
+                                                                (item['image']
+                                                                        as Uint8List)
+                                                                    .isNotEmpty
+                                                            ? Image.memory(
+                                                              item['image'],
+                                                              fit: BoxFit.cover,
+                                                            )
+                                                            : Icon(
                                                               Icons
                                                                   .image_not_supported,
-                                                              size: 30,
+                                                              size: 50,
                                                               color:
                                                                   Colors.grey,
                                                             ),
-                                                          ),
-                                                    ),
                                                   ),
                                                   if (isOutOfStock)
                                                     Container(
@@ -691,7 +720,7 @@ class _CashierPageState extends State<CashierPage> {
                                                               final _quantityBefore =
                                                                   item['quantity'] ??
                                                                   0;
-                                                              if (increaseQuantity(
+                                                              if (_increaseQuantity(
                                                                 item,
                                                               )) {
                                                                 outOfStockId.add(
@@ -707,7 +736,10 @@ class _CashierPageState extends State<CashierPage> {
 
                                                               for (var checkCart
                                                                   in cart) {
-                                                                if (checkCart.containsKey("set")) {
+                                                                if (checkCart
+                                                                    .containsKey(
+                                                                      "set",
+                                                                    )) {
                                                                   for (
                                                                     int i = 0;
                                                                     i <
@@ -861,7 +893,7 @@ class _CashierPageState extends State<CashierPage> {
                             setProductToAdd['type'] = setType;
 
                             // Add the set to cart
-                            addToCart(setProductToAdd);
+                            _addToCart(setProductToAdd);
                             Navigator.of(context).pop();
                           }
                           : null,
@@ -920,7 +952,7 @@ class _CashierPageState extends State<CashierPage> {
               if (selectedCategory == "SET" && !product.containsKey("piece")) {
                 _showDialogForSet(product, product['set']);
               } else {
-                addToCart(product);
+                _addToCart(product);
               }
             } else {
               showToastMessage(
@@ -973,18 +1005,18 @@ class _CashierPageState extends State<CashierPage> {
                                 Colors.transparent,
                                 BlendMode.srcOver,
                               ),
-                      child: CardImage(
-                        imageSource: product['image'],
-                        fit: BoxFit.cover,
-                        backgroundColor: Colors.grey[300],
-                        placeholderWidget: const Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            size: 50,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ),
+                      child:
+                          product['image'] is Uint8List &&
+                                  (product['image'] as Uint8List).isNotEmpty
+                              ? Image.memory(
+                                product['image'],
+                                fit: BoxFit.cover,
+                              )
+                              : Icon(
+                                Icons.image_not_supported,
+                                size: 50,
+                                color: Colors.grey,
+                              ),
                     ),
                   ),
 
@@ -1038,7 +1070,7 @@ class _CashierPageState extends State<CashierPage> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
-                          product['name'],
+                          "${product['name']}",
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
@@ -1067,7 +1099,7 @@ class _CashierPageState extends State<CashierPage> {
     );
   }
 
-  void selectAll() {
+  void _selectAll() {
     setState(() {
       for (var item in cart) {
         item["selected"] = true;
@@ -1075,7 +1107,7 @@ class _CashierPageState extends State<CashierPage> {
     });
   }
 
-  void toggleAll() {
+  void _toggleAll() {
     setState(() {
       for (var item in cart) {
         item["selected"] = !item["selected"];
@@ -1085,13 +1117,13 @@ class _CashierPageState extends State<CashierPage> {
 
   // BUG: This function is not working as expected
   // Sometimes it turn exception for SET in _buildOrderSummary on !cart[index]["selected"]
-  void toggleSelection(int index) {
+  void _toggleSelection(int index) {
     setState(() {
       cart[index]["selected"] = !cart[index]["selected"];
     });
   }
 
-  bool increaseQuantity(Map<String, dynamic> item) {
+  bool _increaseQuantity(Map<String, dynamic> item) {
     int newQty = (item["quantity"] ?? 1) + 1;
 
     if (newQty > inventory.productCatalog![item["id"]]![item['type']]) {
@@ -1128,7 +1160,7 @@ class _CashierPageState extends State<CashierPage> {
     return true;
   }
 
-  Future<bool> processTransaction({
+  Future<bool> _processTransaction({
     String? paymentMethod,
     Map<String, dynamic>? transactionData,
   }) async {
@@ -1136,6 +1168,8 @@ class _CashierPageState extends State<CashierPage> {
       Map<String, dynamic> processTransactionData = {
         'processed_set': {},
         'id': currentOrderId,
+        "employeeName": employeeName,
+        "employeeID": employeeID,
       };
 
       transactionData?.forEach((key, value) {
@@ -1147,6 +1181,7 @@ class _CashierPageState extends State<CashierPage> {
           List<Map<String, dynamic>> cartItems =
               value as List<Map<String, dynamic>>;
           Map<String, dynamic> processedCart = {};
+          Map<String, dynamic> inventoryTransaction = {};
           List<Map<String, dynamic>> receiptList = [];
           String id;
           for (var item in cartItems) {
@@ -1192,13 +1227,22 @@ class _CashierPageState extends State<CashierPage> {
             receiptList.add(receipt);
           }
 
+          processedCart.forEach((id, value) {
+            inventoryTransaction[id] = {
+              'total_stocks': value['total_stocks'] ?? 0,
+              'total_pieces_used': value['total_pieces_used'] ?? 0,
+            };
+          });
+
+          processTransactionData['inventoryTransaction'] = inventoryTransaction;
           processTransactionData['processed_set'] = processedCart;
           processTransactionData['receiptList'] = receiptList;
           processTransactionData['datetime'] = DateFormat(
             'yyyy-MM-dd HH:mm:ss',
           ).format(DateTime.now());
-          processTransactionData['timestamp_int'] =
-              DateTime.now().millisecondsSinceEpoch;
+          processTransactionData['timestamp_int'] = getDateTimeNow(
+            timestamp: true,
+          );
           processTransactionData['receiptData'] = {...receiptData};
         }
       });
@@ -1208,74 +1252,79 @@ class _CashierPageState extends State<CashierPage> {
       );
 
       bool checkRecordTransaction = await recordTransaction(
-        timestamp: processTransactionData['timestamp_int'],
-        receiptList: "${processTransactionData['receiptList']}",
-        paymentMethod: processTransactionData['paymentMethod'],
-        totalAmount: processTransactionData['totalAmount'],
+        employeeId: employeeID,
+        processTransactionData: processTransactionData,
       );
 
       bool checkAllTransaction = checkRecordTransaction && checkStockUpdate;
 
       // CASHIER_LOGS.debug(
-      //   'raw transactionData: \n${CASHIER_LOGS.map2str(transactionData!)}',
+      //   'raw transactionData: \n${CASHIER_LOGS.map2str(removeImageKey(transactionData!))}',
       // );
       // CASHIER_LOGS.debug(
-      //   'Processing transaction: \n${CASHIER_LOGS.map2str(processTransactionData)}',
+      //   'Processing transaction: \n${CASHIER_LOGS.map2str(removeImageKey(processTransactionData))}',
       // );
 
       if (checkAllTransaction) {
         // Launch receipt processing in the backgroundb
-        Future.microtask(() async {
-          try {
-            // First check and request permissions with timeout
-            final hasPermissions =
-                await PermissionManager.requestBluetoothPermissionsWithTimeout(
+        if (checkPrintReceipt) {
+          Future.microtask(() async {
+            try {
+              // First check and request permissions with timeout
+              final hasPermissions =
+                  await PermissionManager.requestBluetoothPermissionsWithTimeout(
+                    context,
+                    timeout: const Duration(seconds: 15),
+                  );
+
+              if (!hasPermissions) {
+                showToastMessage(
                   context,
-                  timeout: const Duration(seconds: 15),
+                  'Bluetooth permissions are required to use the printer',
+                  ToastLevel.warning,
                 );
+                return;
+              }
 
-            if (!hasPermissions) {
-              showToastMessage(
-                context,
-                'Bluetooth permissions are required to use the printer',
-                ToastLevel.warning,
+              // Store the current printer
+              final currentPrinterCopy = btPrinter?.selectedPrinter;
+
+              final printResult = await processReceipt(
+                context: context, // This will be used in the main isolate
+                currentPrinter: currentPrinterCopy,
+                receiptData: processTransactionData,
               );
-              return;
-            }
 
-            // Store the current printer
-            final currentPrinterCopy = btPrinter?.selectedPrinter;
-
-            final printResult = await processReceipt(
-              context: context, // This will be used in the main isolate
-              currentPrinter: currentPrinterCopy,
-              receiptData: processTransactionData,
-            );
-
-            if (printResult != true) {
-              // Show toast on the main thread
+              if (printResult != true) {
+                // Show toast on the main thread
+                if (context.mounted) {
+                  showToastMessage(
+                    context,
+                    'Failed to print receipt',
+                    ToastLevel.warning,
+                    position: ToastPosition.topRight,
+                  );
+                  setState(() {
+                    checkPrintReceipt = false;
+                  });
+                }
+              }
+            } catch (e) {
               if (context.mounted) {
                 showToastMessage(
                   context,
-                  'Failed to print receipt',
+                  'Error printing receipt: ${e.toString()}',
                   ToastLevel.warning,
                   position: ToastPosition.topRight,
                 );
+
+                checkPrintReceipt = false;
               }
             }
-          } catch (e) {
-            if (context.mounted) {
-              showToastMessage(
-                context,
-                'Error printing receipt: ${e.toString()}',
-                ToastLevel.warning,
-                position: ToastPosition.topRight,
-              );
-            }
-          }
-        });
+          });
+        }
 
-        if (paymentMethod == 'cash') {
+        if (paymentMethod == 'cash' && checkCashDrawer) {
           var drawer = await checkAndOpenCashDrawer(context);
         }
 
@@ -1299,13 +1348,10 @@ class _CashierPageState extends State<CashierPage> {
         await inventory.getAllProductsAndSets();
 
     setState(() {
-      cart.clear();
-      outOfStockItems.clear();
-      receiptData.clear();
-      currentOrderId++;
       productsStream = loadedProducts;
     });
 
+    await _reloadAll();
     // Show success message
     showToastMessage(
       context,
@@ -1315,7 +1361,6 @@ class _CashierPageState extends State<CashierPage> {
     );
 
     // Reload product data
-    await _loadProductsData();
     await AudioManager().playSound(
       soundPath: 'assets/sounds/transaction_done.mp3',
     );
@@ -1373,8 +1418,7 @@ class _CashierPageState extends State<CashierPage> {
   }
 
   void _showCheckoutDialog(BuildContext context, double totalAmount) {
-    CASHIER_LOGS.console('Showing checkout dialog');
-    bool printReceipt = true;
+    // CASHIER_LOGS.console('Showing checkout dialog');
     String selectedPaymentMethod = 'cash';
 
     // Calculate necessary values for display
@@ -1387,13 +1431,21 @@ class _CashierPageState extends State<CashierPage> {
     double taxRate =
         (globalAppConfig["cashier"]["tax"] as num?)?.toDouble() ?? 0.0;
     double taxAmount = subtotal * taxRate;
-    receiptData['checkPrint'] = printReceipt;
+    receiptData['checkPrint'] = checkPrintReceipt;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            // Responsive height for item list (show up to 3 items, else scroll)
+            const double itemHeight = 38; // Approximate height per item row
+            int maxVisibleItems = 3;
+            double listBoxHeight =
+                (cart.length <= maxVisibleItems)
+                    ? cart.length * itemHeight
+                    : maxVisibleItems * itemHeight;
+
             return Dialog(
               insetPadding: const EdgeInsets.symmetric(
                 horizontal: 20,
@@ -1402,360 +1454,317 @@ class _CashierPageState extends State<CashierPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: SingleChildScrollView(
-                // Added SingleChildScrollView to prevent overflow
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.6,
-                  padding: const EdgeInsets.all(
-                    20,
-                  ), // Reduced padding from 24 to 20
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            LOCALIZATION.localize(
-                              "cashier_page.checkout_confirmation",
-                            ),
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.6,
+                height: MediaQuery.of(context).size.height * 0.8,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          LOCALIZATION.localize(
+                            "cashier_page.checkout_confirmation",
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            padding: EdgeInsets.zero, // Reduce button padding
-                            constraints:
-                                const BoxConstraints(), // Minimize constraints
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ),
-                      const Divider(height: 20), // Reduced height from 24 to 20
-                      // Order summary
-                      Text(
-                        LOCALIZATION.localize("cashier_page.order_items"),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
                         ),
-                      ),
-                      const SizedBox(height: 8), // Reduced height from 12 to 8
-                      // Order items list
-                      Container(
-                        constraints: BoxConstraints(
-                          // Set a fixed height to show approximately 4 items
-                          maxHeight: 150, // Reduced from 160 to 150
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: ListView.builder(
-                          shrinkWrap: false,
-                          itemCount: cart.length,
-                          itemBuilder: (context, index) {
-                            final item = cart[index];
-                            final quantity = item['quantity'] ?? 1;
-                            final price = item['price'] ?? 0.0;
-                            final itemTotal = price * quantity;
-
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 6, // Reduced from 8 to 6
-                                horizontal: 12,
-                              ),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    "$quantity x",
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: Text(item['name'] ?? "")),
-                                  Text(
-                                    "${globalAppConfig["userPreferences"]["currency"]}${itemTotal.toStringAsFixed(2)}",
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () {
+                            Navigator.of(context).pop();
                           },
                         ),
+                      ],
+                    ),
+                    const Divider(height: 8),
+                    // Order summary
+                    Text(
+                      LOCALIZATION.localize("cashier_page.order_items"),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
+                    ),
+                    const SizedBox(height: 8),
 
-                      const SizedBox(height: 16), // Reduced from 20 to 16
-                      // Total amount with tax and discount details
-                      Container(
-                        padding: const EdgeInsets.all(
-                          10,
-                        ), // Reduced from 12 to 10
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    // Responsive item list container
+                    Container(
+                      constraints: BoxConstraints(
+                        maxHeight:
+                            listBoxHeight == 0 ? itemHeight : listBoxHeight,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        physics:
+                            cart.length > maxVisibleItems
+                                ? const AlwaysScrollableScrollPhysics()
+                                : const NeverScrollableScrollPhysics(),
+                        itemCount: cart.length,
+                        itemBuilder: (context, index) {
+                          final item = cart[index];
+                          final quantity = item['quantity'] ?? 1;
+                          final price = item['price'] ?? 0.0;
+                          final itemTotal = price * quantity;
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 6,
+                              horizontal: 12,
+                            ),
+                            child: Row(
                               children: [
                                 Text(
-                                  LOCALIZATION.localize("main_word.total"),
+                                  "$quantity x",
                                   style: const TextStyle(
-                                    fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(item['name'] ?? "")),
                                 Text(
-                                  "${globalAppConfig["userPreferences"]["currency"]}${totalAmount.toStringAsFixed(2)}",
+                                  "${globalAppConfig["userPreferences"]["currency"]}${itemTotal.toStringAsFixed(2)}",
                                   style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
-                            // Small divider
-                            Divider(
-                              height: 10,
-                              thickness: 0.5,
-                              color: Colors.grey.withOpacity(0.5),
-                            ),
-                            // Tax and discount details in smaller font
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "${LOCALIZATION.localize("cashier_page.tax")}: ${globalAppConfig["userPreferences"]["currency"]}${taxAmount.toStringAsFixed(2)}",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                ),
-                                Text(
-                                  "${LOCALIZATION.localize("cashier_page.discount")}: ${globalAppConfig["userPreferences"]["currency"]}${discountAmount.toStringAsFixed(2)}",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color:
-                                        discountAmount > 0
-                                            ? Colors.orange
-                                            : Colors.grey.shade700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
-
-                      const SizedBox(height: 16), // Reduced from 24 to 16
-                      // Payment method selection
-                      Text(
-                        LOCALIZATION.localize(
-                          "cashier_page.select_payment_method",
-                        ),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Total amount with tax and discount details
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(height: 8), // Reduced from 12 to 8
-                      // Payment method options
-                      Wrap(
-                        spacing: 8, // Reduced from 10 to 8
-                        runSpacing: 8, // Reduced from 10 to 8
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (globalAppConfig["cashier"]["payment_methods"]["cash"])
-                            _buildPaymentMethodButton(
-                              icon: Icons.money,
-                              label: LOCALIZATION.localize(
-                                "cashier_page.payment_cash",
-                              ),
-                              value: 'cash',
-                              selectedValue: selectedPaymentMethod,
-                              onSelected: (value) {
-                                setState(() => selectedPaymentMethod = value);
-                              },
-                            ),
-                          if (globalAppConfig["cashier"]["payment_methods"]["credit"])
-                            _buildPaymentMethodButton(
-                              icon: Icons.credit_card,
-                              label: LOCALIZATION.localize(
-                                "cashier_page.payment_credit",
-                              ),
-                              value: 'credit',
-                              selectedValue: selectedPaymentMethod,
-                              onSelected: (value) {
-                                setState(() => selectedPaymentMethod = value);
-                              },
-                            ),
-                          if (globalAppConfig["cashier"]["payment_methods"]["debit"])
-                            _buildPaymentMethodButton(
-                              icon: Icons.payment,
-                              label: LOCALIZATION.localize(
-                                "cashier_page.payment_debit",
-                              ),
-                              value: 'debit',
-                              selectedValue: selectedPaymentMethod,
-                              onSelected: (value) {
-                                setState(() => selectedPaymentMethod = value);
-                              },
-                            ),
-                          if (globalAppConfig["cashier"]["payment_methods"]["qr"])
-                            _buildPaymentMethodButton(
-                              icon: Icons.qr_code,
-                              label: LOCALIZATION.localize(
-                                "cashier_page.payment_qr",
-                              ),
-                              value: 'qr',
-                              selectedValue: selectedPaymentMethod,
-                              onSelected: (value) {
-                                setState(() => selectedPaymentMethod = value);
-                              },
-                            ),
-                          if (globalAppConfig["cashier"]["payment_methods"]["apple"])
-                            _buildPaymentMethodButton(
-                              icon: Icons.apple,
-                              label: LOCALIZATION.localize(
-                                "cashier_page.payment_apple",
-                              ),
-                              value: 'apple',
-                              selectedValue: selectedPaymentMethod,
-                              onSelected: (value) {
-                                setState(() => selectedPaymentMethod = value);
-                              },
-                            ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16), // Reduced from 24 to 16
-                      // Action buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          OutlinedButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ), // Reduced from 20 to 16
-                              minimumSize: const Size(
-                                0,
-                                36,
-                              ), // Set minimum height
-                            ),
-                            child: Text(
-                              LOCALIZATION.localize("main_word.cancel"),
-                            ),
-                          ),
-                          const SizedBox(width: 8), // Reduced from 12 to 8
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Print receipt toggle
-                              Row(
-                                children: [
-                                  Text(
-                                    LOCALIZATION.localize(
-                                      "cashier_page.print_receipt",
-                                    ),
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                    ), // Reduced from 14 to 13
-                                  ),
-                                  const SizedBox(
-                                    width: 4,
-                                  ), // Reduced from 8 to 4
-                                  Transform.scale(
-                                    scale: 0.8, // Scale down the switch
-                                    child: Switch(
-                                      value: printReceipt,
-                                      activeColor: primaryColor,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          printReceipt = value;
-                                          receiptData['checkPrint'] = value;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(width: 8), // Reduced from 12 to 8
-                              // Confirm payment button
-                              ElevatedButton.icon(
-                                icon: const Icon(
-                                  Icons.check,
-                                  size: 16,
-                                ), // Smaller icon
-                                label: Text(
-                                  LOCALIZATION.localize(
-                                    "cashier_page.confirm_payment",
-                                  ),
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                  ), // Smaller text
+                              Text(
+                                LOCALIZATION.localize("main_word.total"),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                onPressed: () {
-                                  // Close the checkout dialog first
-                                  Navigator.of(context).pop();
-
-                                  // Based on the selected payment method, show the appropriate dialog
-                                  if (selectedPaymentMethod == 'cash') {
-                                    // Show the cash payment dialog for cash payments
-                                    _showCashPaymentDialog(
-                                      context,
-                                      totalAmount,
-                                    );
-                                  } else {
-                                    // For other payment methods, just complete the transaction
-                                    setState(() {
-                                      cart.clear();
-                                      currentOrderId++;
-                                    });
-
-                                    showToastMessage(
-                                      context,
-                                      LOCALIZATION.localize(
-                                        "cashier_page.payment_successful",
-                                      ),
-                                      ToastLevel.success,
-                                      position: ToastPosition.topRight,
-                                    );
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primaryColor,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, // Reduced padding
-                                  ),
-                                  minimumSize: const Size(
-                                    0,
-                                    36,
-                                  ), // Set minimum height
+                              ),
+                              Text(
+                                "${globalAppConfig["userPreferences"]["currency"]}${totalAmount.toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Divider(
+                            height: 10,
+                            thickness: 0.5,
+                            color: Colors.grey.withOpacity(0.5),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "${LOCALIZATION.localize("cashier_page.tax")}: ${globalAppConfig["userPreferences"]["currency"]}${taxAmount.toStringAsFixed(2)}",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              Text(
+                                "${LOCALIZATION.localize("cashier_page.discount")}: ${globalAppConfig["userPreferences"]["currency"]}${discountAmount.toStringAsFixed(2)}",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color:
+                                      discountAmount > 0
+                                          ? Colors.orange
+                                          : Colors.grey.shade700,
                                 ),
                               ),
                             ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Payment method selection
+                    Text(
+                      LOCALIZATION.localize(
+                        "cashier_page.select_payment_method",
+                      ),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (globalAppConfig["cashier"]["payment_methods"]["cash"])
+                          _buildPaymentMethodButton(
+                            icon: Icons.money,
+                            label: LOCALIZATION.localize(
+                              "cashier_page.payment_cash",
+                            ),
+                            value: 'cash',
+                            selectedValue: selectedPaymentMethod,
+                            onSelected: (value) {
+                              setState(() => selectedPaymentMethod = value);
+                            },
+                          ),
+                        if (globalAppConfig["cashier"]["payment_methods"]["credit"])
+                          _buildPaymentMethodButton(
+                            icon: Icons.credit_card,
+                            label: LOCALIZATION.localize(
+                              "cashier_page.payment_credit",
+                            ),
+                            value: 'credit',
+                            selectedValue: selectedPaymentMethod,
+                            onSelected: (value) {
+                              setState(() => selectedPaymentMethod = value);
+                            },
+                          ),
+                        if (globalAppConfig["cashier"]["payment_methods"]["debit"])
+                          _buildPaymentMethodButton(
+                            icon: Icons.payment,
+                            label: LOCALIZATION.localize(
+                              "cashier_page.payment_debit",
+                            ),
+                            value: 'debit',
+                            selectedValue: selectedPaymentMethod,
+                            onSelected: (value) {
+                              setState(() => selectedPaymentMethod = value);
+                            },
+                          ),
+                        if (globalAppConfig["cashier"]["payment_methods"]["qr"])
+                          _buildPaymentMethodButton(
+                            icon: Icons.qr_code,
+                            label: LOCALIZATION.localize(
+                              "cashier_page.payment_qr",
+                            ),
+                            value: 'qr',
+                            selectedValue: selectedPaymentMethod,
+                            onSelected: (value) {
+                              setState(() => selectedPaymentMethod = value);
+                            },
+                          ),
+                        if (globalAppConfig["cashier"]["payment_methods"]["apple"])
+                          _buildPaymentMethodButton(
+                            icon: Icons.apple,
+                            label: LOCALIZATION.localize(
+                              "cashier_page.payment_apple",
+                            ),
+                            value: 'apple',
+                            selectedValue: selectedPaymentMethod,
+                            onSelected: (value) {
+                              setState(() => selectedPaymentMethod = value);
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Action buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            minimumSize: const Size(0, 36),
+                          ),
+                          child: Text(
+                            LOCALIZATION.localize("main_word.cancel"),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Row(
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  LOCALIZATION.localize(
+                                    "cashier_page.print_receipt",
+                                  ),
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                                const SizedBox(width: 4),
+                                Transform.scale(
+                                  scale: 0.8,
+                                  child: Switch(
+                                    value: checkPrintReceipt,
+                                    activeColor: primaryColor,
+                                    onChanged:
+                                        checkPrintReceipt
+                                            ? (value) {
+                                              setState(() {
+                                                checkPrintReceipt = value;
+                                                receiptData['checkPrint'] =
+                                                    value;
+                                              });
+                                            }
+                                            : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.check, size: 16),
+                              label: Text(
+                                LOCALIZATION.localize(
+                                  "cashier_page.confirm_payment",
+                                ),
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                if (selectedPaymentMethod == 'cash') {
+                                  _showCashPaymentDialog(context, totalAmount);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                minimumSize: const Size(0, 36),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             );
@@ -1766,6 +1775,8 @@ class _CashierPageState extends State<CashierPage> {
   }
 
   void _showCashPaymentDialog(BuildContext context, double totalAmount) {
+    /// This function shows a dialog for cash payment.
+    /// It allows the user to enter the amount of cash given and calculates the change if applicable.
     String enteredAmount = '';
     bool showError = false;
 
@@ -1878,7 +1889,7 @@ class _CashierPageState extends State<CashierPage> {
                     // Change amount display
                     if (changeAmount != null)
                       Container(
-                        margin: const EdgeInsets.only(top: 12),
+                        margin: const EdgeInsets.only(top: 10),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.green.withOpacity(0.1),
@@ -1907,26 +1918,23 @@ class _CashierPageState extends State<CashierPage> {
                         ),
                       ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 5),
 
                     // Numpad
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      child: NumPad(
-                        initialValue: enteredAmount,
-                        onValueChanged: (value) {
-                          setState(() {
-                            enteredAmount = value;
-                            showError = false;
-                          });
-                        },
-                      ),
+                    NumPad(
+                      initialValue: enteredAmount,
+                      onValueChanged: (value) {
+                        setState(() {
+                          enteredAmount = value;
+                          showError = false;
+                        });
+                      },
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 5),
 
                     // Action buttons
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         OutlinedButton(
                           onPressed: () {
@@ -1978,7 +1986,7 @@ class _CashierPageState extends State<CashierPage> {
                               receiptData["enteredAmount"] = double.parse(
                                 enteredAmount,
                               );
-                              bool checkTransaction = await processTransaction(
+                              bool checkTransaction = await _processTransaction(
                                 paymentMethod: 'cash',
                                 transactionData: transactionData,
                               );
@@ -1986,11 +1994,22 @@ class _CashierPageState extends State<CashierPage> {
                                   checkTransaction) {
                                 Navigator.of(context).pop(true);
                               } else {
+                                AudioManager().playSound(
+                                  soundPath: 'assets/sounds/warning.mp3',
+                                );
                                 setState(() {
                                   showError = true;
                                 });
                               }
                             } catch (e) {
+                              CASHIER_LOGS.error(
+                                "Error entering amount for cash payment",
+                                e,
+                                StackTrace.current,
+                              );
+                              AudioManager().playSound(
+                                soundPath: 'assets/sounds/error.mp3',
+                              );
                               setState(() {
                                 showError = true;
                               });
@@ -2055,6 +2074,7 @@ class _CashierPageState extends State<CashierPage> {
               color: isSelected ? Colors.white : Colors.grey.shade700,
             ),
             const SizedBox(width: 8),
+
             Text(
               label,
               style: TextStyle(
@@ -2068,7 +2088,6 @@ class _CashierPageState extends State<CashierPage> {
     );
   }
 
-  
   Widget _buildOrderSummary() {
     // Calculate total
     double totalPrice = cart.fold(
@@ -2087,7 +2106,7 @@ class _CashierPageState extends State<CashierPage> {
     ).format(currentOrderId);
 
     final List<int> outOfStockId = [];
-    
+
     // Check if any items are selected
     bool hasSelectedItems = cart.any((item) => item["selected"] == true);
 
@@ -2133,6 +2152,7 @@ class _CashierPageState extends State<CashierPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     Text(
                       "#$formattedOrderId",
                       style: TextStyle(
@@ -2158,33 +2178,37 @@ class _CashierPageState extends State<CashierPage> {
                             setState(() {
                               // Create a list of items to keep (not selected)
                               List<Map<String, dynamic>> newCart = [];
-                              
+
                               // Remove selected items from cart and outOfStockItems
                               for (int i = 0; i < cart.length; i++) {
                                 if (cart[i]["selected"] != true) {
                                   newCart.add(cart[i]);
                                 } else {
                                   // If removing item, also remove from outOfStockItems if present
-                                  if (cart[i].containsKey("id") && 
-                                      outOfStockItems.containsKey(cart[i]["id"])) {
-                                        if(cart[i].containsKey("set")){
-                                          for (var setItem in cart[i]["set"]) {
-                                            outOfStockItems.remove(setItem["id"]);
-                                          }
-                                        }
+                                  if (cart[i].containsKey("id") &&
+                                      outOfStockItems.containsKey(
+                                        cart[i]["id"],
+                                      )) {
+                                    if (cart[i].containsKey("set")) {
+                                      for (var setItem in cart[i]["set"]) {
+                                        outOfStockItems.remove(setItem["id"]);
+                                      }
+                                    }
                                     outOfStockItems.remove(cart[i]["id"]);
                                   }
                                 }
                               }
-                              
+
                               // Replace cart with filtered list
                               cart = newCart;
                             });
-                            
+
                             // Show confirmation toast
                             showToastMessage(
                               context,
-                              LOCALIZATION.localize("cashier_page.items_removed"),
+                              LOCALIZATION.localize(
+                                "cashier_page.items_removed",
+                              ),
                               ToastLevel.info,
                               position: ToastPosition.topRight,
                             );
@@ -2203,7 +2227,7 @@ class _CashierPageState extends State<CashierPage> {
                           ),
                         ),
                       ),
-                    
+
                     // Items count badge
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -2272,7 +2296,7 @@ class _CashierPageState extends State<CashierPage> {
                         return Dismissible(
                           key: Key("cart-item-$index"),
                           direction: DismissDirection.endToStart,
-                          onDismissed: (_) => removeFromCart(index),
+                          onDismissed: (_) => _removeFromCart(index),
                           background: Container(
                             alignment: Alignment.centerRight,
                             padding: const EdgeInsets.only(right: 16),
@@ -2298,7 +2322,7 @@ class _CashierPageState extends State<CashierPage> {
                                 leading: Checkbox(
                                   activeColor: primaryColor,
                                   value: item["selected"] ?? false,
-                                  onChanged: (_) => toggleSelection(index),
+                                  onChanged: (_) => _toggleSelection(index),
                                   visualDensity: VisualDensity.compact,
                                 ),
                                 title: Column(
@@ -2312,6 +2336,7 @@ class _CashierPageState extends State<CashierPage> {
                                       ),
                                       overflow: TextOverflow.visible,
                                     ),
+
                                     Text(
                                       "${globalAppConfig["userPreferences"]["currency"]}${price.toStringAsFixed(2)} $unitType",
                                       style: TextStyle(
@@ -2320,6 +2345,7 @@ class _CashierPageState extends State<CashierPage> {
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
+
                                     if (setItems != null && setItems.isNotEmpty)
                                       Padding(
                                         padding: const EdgeInsets.only(top: 2),
@@ -2394,7 +2420,7 @@ class _CashierPageState extends State<CashierPage> {
                                                       }
                                                     });
                                                   } else {
-                                                    removeFromCart(index);
+                                                    _removeFromCart(index);
                                                   }
                                                 },
                                                 child: Container(
@@ -2436,7 +2462,7 @@ class _CashierPageState extends State<CashierPage> {
                                                     soundPath:
                                                         'assets/sounds/click.mp3',
                                                   );
-                                                  if (increaseQuantity(item)) {
+                                                  if (_increaseQuantity(item)) {
                                                     outOfStockId.add(
                                                       item['id'],
                                                     );
@@ -2492,7 +2518,7 @@ class _CashierPageState extends State<CashierPage> {
                   children: [
                     OutlinedButton.icon(
                       icon: const Icon(Icons.select_all, size: 14),
-                      onPressed: selectAll,
+                      onPressed: _selectAll,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: primaryColor,
                         side: BorderSide(color: primaryColor),
@@ -2651,10 +2677,10 @@ class _CashierPageState extends State<CashierPage> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Row(
           children: [
@@ -2667,6 +2693,7 @@ class _CashierPageState extends State<CashierPage> {
                 ],
               ),
             ),
+
             Expanded(flex: 1, child: _buildOrderSummary()),
           ],
         ),
@@ -2674,5 +2701,3 @@ class _CashierPageState extends State<CashierPage> {
     );
   }
 }
-
-

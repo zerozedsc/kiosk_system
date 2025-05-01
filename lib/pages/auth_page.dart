@@ -12,6 +12,7 @@ class SignupPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(LOCALIZATION.localize('auth_page.signup_button')),
       ),
@@ -26,20 +27,27 @@ class SignupPage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.app_registration, size: 100, color: secondaryColor),
+                    Icon(
+                      Icons.app_registration,
+                      size: 100,
+                      color: secondaryColor,
+                    ),
                     const SizedBox(height: 20),
                     Text(
                       LOCALIZATION.localize('app_name'),
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            
+
             // Divider
             const VerticalDivider(thickness: 1, width: 40),
-            
+
             // Right side - Signup form
             Expanded(
               flex: 3,
@@ -53,7 +61,10 @@ class SignupPage extends StatelessWidget {
                       children: [
                         Text(
                           LOCALIZATION.localize('auth_page.sigup'),
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 20),
@@ -70,7 +81,9 @@ class SignupPage extends StatelessWidget {
                         const SizedBox(height: 20),
                         TextField(
                           decoration: InputDecoration(
-                            labelText: LOCALIZATION.localize('auth_page.password'),
+                            labelText: LOCALIZATION.localize(
+                              'auth_page.password',
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0),
                             ),
@@ -81,7 +94,9 @@ class SignupPage extends StatelessWidget {
                         const SizedBox(height: 20),
                         TextField(
                           decoration: InputDecoration(
-                            labelText: LOCALIZATION.localize('auth_page.confirm_password'),
+                            labelText: LOCALIZATION.localize(
+                              'auth_page.confirm_password',
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0),
                             ),
@@ -93,8 +108,10 @@ class SignupPage extends StatelessWidget {
                         ElevatedButton(
                           onPressed: () {
                             showToastMessage(
-                              context, 
-                              LOCALIZATION.localize('auth_page.account_created'), 
+                              context,
+                              LOCALIZATION.localize(
+                                'auth_page.account_created',
+                              ),
                               ToastLevel.success,
                               position: ToastPosition.bottom,
                             );
@@ -105,14 +122,20 @@ class SignupPage extends StatelessWidget {
                             backgroundColor: secondaryColor,
                             shadowColor: Colors.black,
                           ),
-                          child: Text(LOCALIZATION.localize('auth_page.signup_button')),
+                          child: Text(
+                            LOCALIZATION.localize('auth_page.signup_button'),
+                          ),
                         ),
                         const SizedBox(height: 10),
                         TextButton(
                           onPressed: () {
                             Navigator.pop(context); // Return to login page
                           },
-                          child: Text(LOCALIZATION.localize('auth_page.already_have_account')),
+                          child: Text(
+                            LOCALIZATION.localize(
+                              'auth_page.already_have_account',
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -133,6 +156,7 @@ class LoginPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Row(
@@ -149,102 +173,122 @@ class LoginPage extends StatelessWidget {
                     const SizedBox(height: 20),
                     Text(
                       LOCALIZATION.localize('app_name'),
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            
+
             // Divider
             const VerticalDivider(thickness: 1, width: 40),
-            
+
             // Right side - Login form
             Expanded(
               flex: 3,
               child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500),
-                child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                  LOCALIZATION.localize('auth_page.login'),
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                  decoration: InputDecoration(
-                    labelText: LOCALIZATION.localize('auth_page.username'),
-                    border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    prefixIcon: const Icon(Icons.email),
-                    labelStyle: const TextStyle(color: Colors.black),
-                    hintStyle: const TextStyle(color: Colors.black),
-                  ),
-                  style: const TextStyle(color: Colors.black),
-                  keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                  decoration: InputDecoration(
-                    labelText: LOCALIZATION.localize('auth_page.password'),
-                    border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    prefixIcon: const Icon(Icons.lock),
-                    labelStyle: const TextStyle(color: Colors.black),
-                    hintStyle: const TextStyle(color: Colors.black),
-                  ),
-                  style: const TextStyle(color: Colors.black),
-                  obscureText: true,
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButtonWithSound(
-                  onPressed: () {
-                    AuthService.login(context, "email", "password");
-                  },
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: secondaryColor,
-                    shadowColor: Colors.black,
-                  ),
-                  child: Text(LOCALIZATION.localize('auth_page.login_button')),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SignupPage(),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        LOCALIZATION.localize('auth_page.login'),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      );
-                    },
-                    child: Text(LOCALIZATION.localize('auth_page.new_account')),
-                    ),
-                    TextButton(
-                    onPressed: () {
-                      showToastMessage(
-                      context, 
-                      LOCALIZATION.localize('auth_page.forgot_password_message'), 
-                      ToastLevel.info,
-                      position: ToastPosition.bottom,
-                      );
-                    },
-                    child: Text(LOCALIZATION.localize('auth_page.forgot_password')),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: LOCALIZATION.localize(
+                            'auth_page.username',
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          prefixIcon: const Icon(Icons.email),
+                          labelStyle: const TextStyle(color: Colors.black),
+                          hintStyle: const TextStyle(color: Colors.black),
+                        ),
+                        style: const TextStyle(color: Colors.black),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: LOCALIZATION.localize(
+                            'auth_page.password',
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          prefixIcon: const Icon(Icons.lock),
+                          labelStyle: const TextStyle(color: Colors.black),
+                          hintStyle: const TextStyle(color: Colors.black),
+                        ),
+                        style: const TextStyle(color: Colors.black),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButtonWithSound(
+                        onPressed: () {
+                          AuthService.login(context, "email", "password");
+                        },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: secondaryColor,
+                          shadowColor: Colors.black,
+                        ),
+                        child: Text(
+                          LOCALIZATION.localize('auth_page.login_button'),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SignupPage(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              LOCALIZATION.localize('auth_page.new_account'),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              showToastMessage(
+                                context,
+                                LOCALIZATION.localize(
+                                  'auth_page.forgot_password_message',
+                                ),
+                                ToastLevel.info,
+                                position: ToastPosition.bottom,
+                              );
+                            },
+                            child: Text(
+                              LOCALIZATION.localize(
+                                'auth_page.forgot_password',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
                 ),
-              ),
               ),
             ),
           ],
@@ -254,9 +298,12 @@ class LoginPage extends StatelessWidget {
   }
 }
 
-
 class AuthService {
-  static Future<bool> login(BuildContext context, String email, String password) async {
+  static Future<bool> login(
+    BuildContext context,
+    String email,
+    String password,
+  ) async {
     // Show loading dialog
     showDialog(
       context: context,
@@ -265,36 +312,36 @@ class AuthService {
         return const Dialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: Center(child: CircularProgressIndicator()),
         );
       },
     );
 
     // Simulate login process
     await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
-    
+
     // Close loading dialog
     Navigator.of(context).pop();
 
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const PageControllerClass(),
-      ),
+      MaterialPageRoute(builder: (context) => const PageControllerClass()),
     );
 
     showToastMessage(
-      context, 
-      LOCALIZATION.localize('auth_page.login_success'), 
+      context,
+      LOCALIZATION.localize('auth_page.login_success'),
       ToastLevel.success,
       position: ToastPosition.bottom,
     );
     return true;
   }
-  
-  static Future<bool> signup(BuildContext context, String email, String password) async {
+
+  static Future<bool> signup(
+    BuildContext context,
+    String email,
+    String password,
+  ) async {
     // Show loading dialog
     showDialog(
       context: context,
@@ -303,19 +350,17 @@ class AuthService {
         return const Dialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: Center(child: CircularProgressIndicator()),
         );
       },
     );
-    
+
     // Simulate signup process
     await Future.delayed(const Duration(seconds: 2));
-    
+
     // Close loading dialog
     Navigator.of(context).pop();
-    
+
     return true;
   }
 }

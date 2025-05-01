@@ -47,11 +47,7 @@ class ElevatedButtonWithSound extends StatelessWidget {
       statesController: statesController,
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          icon,
-          const SizedBox(width: 8.0),
-          label,
-        ],
+        children: [icon, const SizedBox(width: 8.0), label],
       ),
     );
   }
@@ -59,12 +55,13 @@ class ElevatedButtonWithSound extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: onPressed == null
-          ? null
-          : () async{
-              await AudioManager().playSound(soundPath: soundPath);
-              onPressed!();
-            },
+      onPressed:
+          onPressed == null
+              ? null
+              : () async {
+                await AudioManager().playSound(soundPath: soundPath);
+                onPressed!();
+              },
       style: style,
       focusNode: focusNode,
       autofocus: autofocus,
@@ -74,7 +71,6 @@ class ElevatedButtonWithSound extends StatelessWidget {
     );
   }
 }
-
 
 /// A TextButton that plays a sound when clicked
 class TextButtonWithSound extends StatelessWidget {
@@ -102,18 +98,19 @@ class TextButtonWithSound extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextButton(
-      onPressed: onPressed == null
-          ? null
-          : () async {
-              await AudioManager().playSound(soundPath: soundPath);
-              onPressed!();
-            },
+      onPressed:
+          onPressed == null
+              ? null
+              : () async {
+                await AudioManager().playSound(soundPath: soundPath);
+                onPressed!();
+              },
       style: style,
       focusNode: focusNode,
       autofocus: autofocus,
       clipBehavior: clipBehavior,
       statesController: statesController,
-      child: child?? const SizedBox(),
+      child: child ?? const SizedBox(),
     );
   }
 }

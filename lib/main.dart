@@ -1,4 +1,5 @@
 import 'package:device_preview/device_preview.dart';
+import 'package:kiosk_system/services/homepage/homepage_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'configs/configs.dart';
@@ -7,7 +8,6 @@ import 'services/database/db.dart';
 import 'services/inventory/inventory_services.dart';
 import 'services/connection/bluetooth.dart';
 import 'services/connection/usb.dart';
-
 
 import 'components/toastmsg.dart';
 
@@ -26,6 +26,7 @@ Future<void> runAppInitializations() async {
   DBNAME = 'app.db';
   DB = await DatabaseConnection.getDatabase(dbName: DBNAME);
   inventory = await InventoryServices().initialize();
+  homepageService = await HomepageService().initialize();
 
   // Initialize localization
   LOCALIZATION = LocalizationManager(
@@ -96,7 +97,7 @@ class _AppRootState extends State<AppRoot> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             // Initialize Bluetooth in the background
             checkPermissionsAndInitBluetooth(context);
-            
+
             // Initialize USB Manager in parallel
             checkPermissionsAndInitUsb(context);
           });
@@ -106,7 +107,4 @@ class _AppRootState extends State<AppRoot> {
       debugShowCheckedModeBanner: false,
     );
   }
-  
-
-
 }

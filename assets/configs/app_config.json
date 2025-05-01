@@ -23,11 +23,11 @@
     },
     "cashier": {
         "tax": 0.00,
-        "payment_methods" : {
+        "payment_methods": {
             "cash": true,
             "credit": false,
             "debit": false,
-            "qr": true,
+            "qr": false,
             "apple": false
         },
         "formattedOrderId": "000000",
@@ -46,7 +46,19 @@
             "membership_level:X",
             "total_distribute:X",
             "online_generate:0,1"
-        ]
+        ],
+        "bluetooth_printer": {
+            "enabled": false,
+            "device_name": "",
+            "device_address": "",
+            "device_type": ""
+        },
+        "cash_drawer": {
+            "enabled": false,
+            "device_name": "",
+            "device_address": "",
+            "device_type": ""
+        }
     },
     "userPreferences": {
         "theme": "light",
