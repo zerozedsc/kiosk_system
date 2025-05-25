@@ -1,26 +1,51 @@
 // main import
 import '../configs/configs.dart';
+import '../services/database/db.dart';
 import '../services/page_controller.dart';
 
 // components
 import '../components/toastmsg.dart';
 import '../components/buttonswithsound.dart';
 
-class SignupPage extends StatelessWidget {
+class SignupPage extends StatefulWidget {
   const SignupPage({Key? key}) : super(key: key);
 
   @override
+  State<SignupPage> createState() => _SignupPageState();
+}
+
+class _SignupPageState extends State<SignupPage> {
+  final kioskNameController = TextEditingController();
+  final locationController = TextEditingController();
+  final adminPasswordController = TextEditingController();
+
+  @override
+  void dispose() {
+    kioskNameController.dispose();
+    locationController.dispose();
+    adminPasswordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (!globalAppConfig["kiosk_info"]?["registered"]) {
+      // If the app is already registered, navigate to the login page
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showToastMessage(
+          context,
+          LOCALIZATION.localize("main_word.app_not_registered"),
+          ToastLevel.warning,
+        );
+      });
+    }
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: Text(LOCALIZATION.localize('auth_page.signup_button')),
-      ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Row(
           children: [
-            // Left side - Logo or image
             Expanded(
               flex: 2,
               child: Center(
@@ -44,8 +69,6 @@ class SignupPage extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Divider
             const VerticalDivider(thickness: 1, width: 40),
 
             // Right side - Signup form
@@ -60,7 +83,7 @@ class SignupPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          LOCALIZATION.localize('auth_page.sigup'),
+                          LOCALIZATION.localize('auth_page.signup_kiosk'),
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -68,22 +91,103 @@ class SignupPage extends StatelessWidget {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 20),
+
+                        // Kiosk Name
                         TextField(
+                          controller: kioskNameController,
                           decoration: InputDecoration(
-                            labelText: LOCALIZATION.localize('auth_page.email'),
+                            labelText:
+                                LOCALIZATION.localize('auth_page.kiosk_name') ??
+                                "Kiosk Name",
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0),
                             ),
-                            prefixIcon: const Icon(Icons.email),
+                            prefixIcon: const Icon(Icons.store),
                           ),
-                          keyboardType: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 20),
+
+                        // Kiosk Location
                         TextField(
+                          controller: locationController,
                           decoration: InputDecoration(
-                            labelText: LOCALIZATION.localize(
-                              'auth_page.password',
+                            labelText:
+                                LOCALIZATION.localize('auth_page.location') ??
+                                "Location",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
                             ),
+                            prefixIcon: const Icon(Icons.location_on),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.my_location),
+                              tooltip:
+                                  LOCALIZATION.localize(
+                                    'main_word.get_location',
+                                  ) ??
+                                  "Get Current Location",
+                              onPressed: () async {
+                                FocusScope.of(context).unfocus();
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder:
+                                      (context) => const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                );
+                                try {
+                                  Map<String, dynamic> address =
+                                      await getCurrentAddress();
+                                  Navigator.of(
+                                    context,
+                                  ).pop(); // Close loading dialog
+                                  if (address["success"]) {
+                                    setState(() {
+                                      locationController.text =
+                                          address["address"];
+                                    });
+                                  } else {
+                                    setState(() {
+                                      locationController.text = "";
+                                    });
+                                    showToastMessage(
+                                      context,
+                                      "auth_page.${address["message"]}",
+                                      ToastLevel.error,
+                                      position: ToastPosition.bottom,
+                                    );
+                                  }
+                                } catch (e) {
+                                  Navigator.of(
+                                    context,
+                                  ).pop(); // Close loading dialog
+                                  setState(() {
+                                    locationController.text = "";
+                                  });
+                                  showToastMessage(
+                                    context,
+                                    LOCALIZATION.localize(
+                                      'auth_page.failed_to_get_location',
+                                    ),
+                                    ToastLevel.error,
+                                    position: ToastPosition.bottom,
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Admin Password
+                        TextField(
+                          controller: adminPasswordController,
+                          decoration: InputDecoration(
+                            labelText:
+                                LOCALIZATION.localize(
+                                  'auth_page.admin_password',
+                                ) ??
+                                "Admin Password",
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0),
                             ),
@@ -92,30 +196,94 @@ class SignupPage extends StatelessWidget {
                           obscureText: true,
                         ),
                         const SizedBox(height: 20),
-                        TextField(
-                          decoration: InputDecoration(
-                            labelText: LOCALIZATION.localize(
-                              'auth_page.confirm_password',
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            prefixIcon: const Icon(Icons.lock_outline),
-                          ),
-                          obscureText: true,
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: () {
-                            showToastMessage(
+
+                        // Signup Button
+                        ElevatedButtonWithSound(
+                          onPressed: () async {
+                            Map<String, dynamic> data = {
+                              "kiosk_id": "RZKIOSK001",
+                              "kiosk_password":
+                                  DEBUG ? "1234" : generateStrongPassword(6),
+                              "kiosk_name": kioskNameController.text.trim(),
+                              "location": locationController.text.trim(),
+                            };
+
+                            final checkSignUp = await AuthService.signup(
                               context,
-                              LOCALIZATION.localize(
-                                'auth_page.account_created',
-                              ),
-                              ToastLevel.success,
-                              position: ToastPosition.bottom,
+                              data,
                             );
-                            Navigator.pop(context); // Return to login page
+
+                            if (checkSignUp) {
+                              showToastMessage(
+                                context,
+                                LOCALIZATION.localize(
+                                  'auth_page.account_created',
+                                ),
+                                ToastLevel.success,
+                                position: ToastPosition.bottom,
+                              );
+
+                              // Show dialog with kiosk ID and password
+                              final kioskId = data["kiosk_id"];
+                              final kioskPassword = data["kiosk_password"];
+
+                              await showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder:
+                                    (context) => AlertDialog(
+                                      title: Text(
+                                        LOCALIZATION.localize(
+                                          'auth_page.kiosk_credentials',
+                                        ),
+                                      ),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            "${LOCALIZATION.localize('auth_page.kiosk_id')}: $kioskId",
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            "${LOCALIZATION.localize('auth_page.kiosk_password')}: $kioskPassword",
+                                          ),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(
+                                              context,
+                                            ).pop(); // Close dialog
+                                            Navigator.pushReplacement(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder:
+                                                    (context) =>
+                                                        const LoginPage(),
+                                              ),
+                                            );
+                                          },
+                                          child: Text(
+                                            LOCALIZATION.localize(
+                                                  'main_word.ok',
+                                                ) ??
+                                                "OK",
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                              );
+                            } else {
+                              showToastMessage(
+                                context,
+                                LOCALIZATION.localize(
+                                  'auth_page.account_creation_failed',
+                                ),
+                                ToastLevel.error,
+                                position: ToastPosition.bottom,
+                              );
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             foregroundColor: Colors.white,
@@ -127,9 +295,18 @@ class SignupPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 10),
+
+                        // Already have an account button
                         TextButton(
                           onPressed: () {
-                            Navigator.pop(context); // Return to login page
+                            if (ModalRoute.of(context)?.isCurrent == true) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const LoginPage(),
+                                ),
+                              );
+                            } // Return to login page
                           },
                           child: Text(
                             LOCALIZATION.localize(
@@ -150,8 +327,32 @@ class SignupPage extends StatelessWidget {
   }
 }
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final kioskIdController = TextEditingController();
+  final kioskPasswordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-fill Kiosk ID if registered
+    if (globalAppConfig["kiosk_info"]?["registered"] == true) {
+      kioskIdController.text = globalAppConfig["kiosk_info"]?["kiosk_id"] ?? "";
+    }
+  }
+
+  @override
+  void dispose() {
+    kioskIdController.dispose();
+    kioskPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +369,6 @@ class LoginPage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // You can add your logo here
                     Icon(Icons.store, size: 100, color: secondaryColor),
                     const SizedBox(height: 20),
                     Text(
@@ -182,8 +382,6 @@ class LoginPage extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Divider
             const VerticalDivider(thickness: 1, width: 40),
 
             // Right side - Login form
@@ -205,27 +403,35 @@ class LoginPage extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
+
+                      // Kiosk ID
                       TextField(
+                        controller: kioskIdController,
                         decoration: InputDecoration(
                           labelText: LOCALIZATION.localize(
-                            'auth_page.username',
+                            'auth_page.kiosk_id',
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8.0),
                           ),
-                          prefixIcon: const Icon(Icons.email),
+                          prefixIcon: const Icon(Icons.fingerprint),
                           labelStyle: const TextStyle(color: Colors.black),
                           hintStyle: const TextStyle(color: Colors.black),
                         ),
                         style: const TextStyle(color: Colors.black),
-                        keyboardType: TextInputType.emailAddress,
+                        keyboardType: TextInputType.text,
                       ),
                       const SizedBox(height: 20),
+
+                      // Kiosk Password
                       TextField(
+                        controller: kioskPasswordController,
                         decoration: InputDecoration(
-                          labelText: LOCALIZATION.localize(
-                            'auth_page.password',
-                          ),
+                          labelText:
+                              LOCALIZATION.localize(
+                                'auth_page.kiosk_password',
+                              ) ??
+                              "Kiosk Password",
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8.0),
                           ),
@@ -237,9 +443,55 @@ class LoginPage extends StatelessWidget {
                         obscureText: true,
                       ),
                       const SizedBox(height: 20),
+
+                      // Login Button
                       ElevatedButtonWithSound(
-                        onPressed: () {
-                          AuthService.login(context, "email", "password");
+                        onPressed: () async {
+                          final kioskId = kioskIdController.text.trim();
+                          final kioskPassword =
+                              kioskPasswordController.text.trim();
+
+                          if (kioskId.isEmpty || kioskPassword.isEmpty) {
+                            showToastMessage(
+                              context,
+                              "Please enter both Kiosk ID and Password",
+                              ToastLevel.error,
+                              position: ToastPosition.bottom,
+                            );
+                            return;
+                          }
+
+                          final checkLogin = await AuthService.login(context, {
+                            "kiosk_id": kioskId,
+                            "kiosk_password": kioskPassword,
+                          });
+
+                          if (checkLogin["success"]) {
+                            showToastMessage(
+                              context,
+                              LOCALIZATION.localize(
+                                'auth_page.${checkLogin["message"]}',
+                              ),
+                              ToastLevel.success,
+                              position: ToastPosition.bottom,
+                            );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => const PageControllerClass(),
+                              ),
+                            );
+                          } else {
+                            showToastMessage(
+                              context,
+                              LOCALIZATION.localize(
+                                'auth_page.${checkLogin["message"]}',
+                              ),
+                              ToastLevel.error,
+                              position: ToastPosition.bottom,
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           foregroundColor: Colors.white,
@@ -251,22 +503,34 @@ class LoginPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          // Signup Button
                           TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const SignupPage(),
-                                ),
-                              );
+                            onPressed: () async {
+                              if (!globalAppConfig["kiosk_info"]?["registered"]) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const SignupPage(),
+                                  ),
+                                );
+                              } else {
+                                showToastMessage(
+                                  context,
+                                  "${LOCALIZATION.localize('main_word.already_registered')}: Please contact support for assistance.",
+                                  ToastLevel.warning,
+                                );
+                              }
                             },
                             child: Text(
                               LOCALIZATION.localize('auth_page.new_account'),
                             ),
                           ),
+
+                          // Forgot Password Button
                           TextButton(
                             onPressed: () {
                               showToastMessage(
@@ -299,10 +563,9 @@ class LoginPage extends StatelessWidget {
 }
 
 class AuthService {
-  static Future<bool> login(
+  static Future<Map<String, dynamic>> login(
     BuildContext context,
-    String email,
-    String password,
+    Map<String, dynamic> data,
   ) async {
     // Show loading dialog
     showDialog(
@@ -318,29 +581,28 @@ class AuthService {
     );
 
     // Simulate login process
-    await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
+    bool kioskId =
+        data["kiosk_id"] == globalAppConfig["kiosk_info"]?["kiosk_id"];
+    bool kioskPassword = await decryptPassword(
+      globalAppConfig["kiosk_info"]?["kiosk_password"],
+      targetPassword: data["kiosk_password"],
+    );
+
+    if (!kioskId) {
+      return {"success": false, "message": "login_id_failed"};
+    } else if (!kioskPassword) {
+      return {"success": false, "message": "login_password_failed"};
+    }
 
     // Close loading dialog
     Navigator.of(context).pop();
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const PageControllerClass()),
-    );
-
-    showToastMessage(
-      context,
-      LOCALIZATION.localize('auth_page.login_success'),
-      ToastLevel.success,
-      position: ToastPosition.bottom,
-    );
-    return true;
+    return {"success": true, "message": "login_success"};
   }
 
   static Future<bool> signup(
     BuildContext context,
-    String email,
-    String password,
+    Map<String, dynamic> data,
   ) async {
     // Show loading dialog
     showDialog(
@@ -355,12 +617,18 @@ class AuthService {
       },
     );
 
-    // Simulate signup process
-    await Future.delayed(const Duration(seconds: 2));
+    globalAppConfig["kiosk_info"]?["kiosk_id"] = data["kiosk_id"];
+    globalAppConfig["kiosk_info"]?["kiosk_name"] = data["kiosk_name"];
+    globalAppConfig["kiosk_info"]?["location"] = data["location"];
+    globalAppConfig["kiosk_info"]?["kiosk_password"] = await encryptPassword(
+      data["kiosk_password"],
+    );
+    globalAppConfig["kiosk_info"]?["registered"] = true;
+    final checkUpdateConfig = await ConfigService.updateConfig();
 
     // Close loading dialog
     Navigator.of(context).pop();
 
-    return true;
+    return checkUpdateConfig;
   }
 }

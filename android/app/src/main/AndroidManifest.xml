@@ -20,6 +20,11 @@
     <!-- USB permissions -->
     <uses-permission android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
     <uses-feature android:name="android.hardware.usb.host" android:required="false"/>
+
+    <!-- Required for location-based features -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     
 
     <application

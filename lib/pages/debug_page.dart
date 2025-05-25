@@ -6,7 +6,8 @@ import '../services/connection/bluetooth.dart';
 import '../services/connection/usb.dart';
 
 class DebugPage extends StatefulWidget {
-  const DebugPage({Key? key}) : super(key: key);
+  final ValueNotifier<int> reloadNotifier;
+  const DebugPage({super.key, required this.reloadNotifier});
 
   @override
   State<DebugPage> createState() => _DebugPageState();
@@ -31,8 +32,10 @@ class _DebugPageState extends State<DebugPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _loadGlobalVariables();
     _loadDatabaseTables();
+    widget.reloadNotifier.addListener(() async {
+      await _loadGlobalVariables();
+    });
   }
 
   @override
@@ -41,23 +44,27 @@ class _DebugPageState extends State<DebugPage>
     _tableSearchController.dispose();
     _sqlQueryController.dispose();
     super.dispose();
+    widget.reloadNotifier.removeListener(_loadGlobalVariables);
   }
 
-  void _loadGlobalVariables() async {
+  Future<void> _loadGlobalVariables() async {
     // Collect global variables from various files
-    _globalVariables['appConfig'] = globalAppConfig;
-    _globalVariables['log'] = APP_LOGS;
-    _globalVariables['localization'] = LOCALIZATION;
-    _globalVariables['inventory'] = inventory;
-    _globalVariables['DEBUG'] = DEBUG;
-    _globalVariables['canVibrate'] = canVibrate;
-    _globalVariables['test_set_parsing'] =
+
+    List<Map<String, dynamic>> getAllProductsSet =
         await inventory.getAllProductsAndSets();
-    _globalVariables['test_set_parsing'] =
-        _globalVariables['test_set_parsing'][_globalVariables['test_set_parsing']
-                .length -
-            1];
-    setState(() {});
+
+    setState(() {
+      _globalVariables['appConfig'] = globalAppConfig;
+      _globalVariables['theme'] =
+          "#${globalAppConfig['userPreferences']['theme']} (${Theme.of(context).brightness})";
+      // _globalVariables['log'] = APP_LOGS;
+      // _globalVariables['localization'] = LOCALIZATION;
+      // _globalVariables['inventory'] = inventory;
+      _globalVariables['DEBUG'] = DEBUG;
+      _globalVariables['canVibrate'] = canVibrate;
+      // _globalVariables['test_set_parsing'] =
+      //     getAllProductsSet[getAllProductsSet.length - 1];
+    });
   }
 
   Future<void> _loadDatabaseTables() async {
@@ -123,9 +130,16 @@ class _DebugPageState extends State<DebugPage>
     }
   }
 
+  // ...existing code...
   Widget _buildGlobalVariablesTab() {
     final theme = Theme.of(context);
-    _globalVariables['theme'] = theme;
+    ;
+
+    final appConfigMap =
+        _globalVariables['appConfig'] is Map
+            ? _globalVariables['appConfig'] as Map
+            : null;
+    final ValueNotifier<String?> expandedKey = ValueNotifier<String?>(null);
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -139,56 +153,342 @@ class _DebugPageState extends State<DebugPage>
             ),
           ),
           const SizedBox(height: 16),
-
           ElevatedButton.icon(
             onPressed: _loadGlobalVariables,
             icon: const Icon(Icons.refresh),
             label: const Text('Refresh Variables'),
           ),
           const SizedBox(height: 16),
-
           Expanded(
-            child: Card(
-              elevation: 4,
-              child: ListView.separated(
-                itemCount: _globalVariables.entries.length,
-                separatorBuilder: (context, index) => Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final entry = _globalVariables.entries.elementAt(index);
-                  return ListTile(
-                    title: Text(
-                      entry.key,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+            child: Row(
+              children: [
+                // Left: appConfig vertical tab
+                if (appConfigMap != null)
+                  Container(
+                    width: 200,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        right: BorderSide(color: theme.dividerColor, width: 1),
                       ),
                     ),
-                    subtitle: Text(
-                      '${entry.value}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontFamily: 'monospace',
+                    child: Scrollbar(
+                      thumbVisibility: true,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: ValueListenableBuilder<String?>(
+                          valueListenable: expandedKey,
+                          builder: (context, selectedKey, _) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text(
+                                    'appConfig',
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                  ),
+                                ),
+                                ...appConfigMap.keys.map<Widget>((k) {
+                                  final isSelected = selectedKey == k;
+                                  return Material(
+                                    color:
+                                        isSelected
+                                            ? theme.colorScheme.primary
+                                                .withOpacity(0.12)
+                                            : Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () {
+                                        expandedKey.value =
+                                            isSelected ? null : k.toString();
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                          horizontal: 12,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                k.toString(),
+                                                style: theme
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          isSelected
+                                                              ? FontWeight.bold
+                                                              : FontWeight
+                                                                  .normal,
+                                                      color:
+                                                          isSelected
+                                                              ? theme
+                                                                  .colorScheme
+                                                                  .primary
+                                                              : null,
+                                                    ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Icon(
+                                              isSelected
+                                                  ? Icons.keyboard_arrow_down
+                                                  : Icons.keyboard_arrow_right,
+                                              size: 18,
+                                              color:
+                                                  isSelected
+                                                      ? theme
+                                                          .colorScheme
+                                                          .primary
+                                                      : theme.iconTheme.color,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
+                            );
+                          },
+                        ),
                       ),
                     ),
-                    tileColor:
-                        index.isEven
-                            ? theme.colorScheme.surfaceVariant.withOpacity(0.2)
-                            : null,
-                    onTap: () {
-                      APP_LOGS.console(entry.value);
-                      showToastMessage(
-                        context,
-                        'Logged ${entry.key} to console',
-                        ToastLevel.info,
+                  ),
+                // Right: Main content (split into appConfig section and other globals)
+                Expanded(
+                  child: ValueListenableBuilder<String?>(
+                    valueListenable: expandedKey,
+                    builder: (context, selectedKey, _) {
+                      final otherKeys =
+                          _globalVariables.keys
+                              .where((k) => k != 'appConfig')
+                              .toList();
+                      return SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8.0,
+                            horizontal: 8.0,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Section: appConfig details
+                              Card(
+                                elevation: 2,
+                                margin: const EdgeInsets.only(bottom: 24),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'appConfig',
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      selectedKey == null
+                                          ? Text(
+                                            'Select a key from appConfig to inspect its value.',
+                                            style: theme.textTheme.bodyMedium,
+                                          )
+                                          : Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                selectedKey,
+                                                style: theme
+                                                    .textTheme
+                                                    .titleSmall
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minHeight: 60,
+                                                      maxHeight: 300,
+                                                      minWidth: 300,
+                                                      maxWidth: 900,
+                                                    ),
+                                                child: Scrollbar(
+                                                  thumbVisibility: true,
+                                                  child: SingleChildScrollView(
+                                                    scrollDirection:
+                                                        Axis.vertical,
+                                                    child: SingleChildScrollView(
+                                                      scrollDirection:
+                                                          Axis.horizontal,
+                                                      child: SelectableText(
+                                                        appConfigMap![selectedKey]
+                                                                    is Map ||
+                                                                appConfigMap[selectedKey]
+                                                                    is List
+                                                            ? APP_LOGS.map2str(
+                                                              appConfigMap[selectedKey],
+                                                            )
+                                                            : appConfigMap[selectedKey]
+                                                                .toString(),
+                                                        style: theme
+                                                            .textTheme
+                                                            .bodyMedium
+                                                            ?.copyWith(
+                                                              fontFamily:
+                                                                  'monospace',
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Row(
+                                                children: [
+                                                  ElevatedButton.icon(
+                                                    icon: const Icon(
+                                                      Icons.copy,
+                                                    ),
+                                                    label: const Text(
+                                                      'Copy Value',
+                                                    ),
+                                                    onPressed: () {
+                                                      final value =
+                                                          appConfigMap[selectedKey];
+                                                      Clipboard.setData(
+                                                        ClipboardData(
+                                                          text:
+                                                              value is Map ||
+                                                                      value
+                                                                          is List
+                                                                  ? APP_LOGS
+                                                                      .map2str(
+                                                                        value,
+                                                                      )
+                                                                  : value
+                                                                      .toString(),
+                                                        ),
+                                                      );
+                                                      showToastMessage(
+                                                        context,
+                                                        'Value copied to clipboard',
+                                                        ToastLevel.info,
+                                                      );
+                                                    },
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  ElevatedButton.icon(
+                                                    icon: const Icon(
+                                                      Icons.bug_report,
+                                                    ),
+                                                    label: const Text(
+                                                      'Log to Console',
+                                                    ),
+                                                    onPressed: () {
+                                                      APP_LOGS.console(
+                                                        appConfigMap[selectedKey],
+                                                      );
+                                                      showToastMessage(
+                                                        context,
+                                                        'Logged appConfig.$selectedKey to console',
+                                                        ToastLevel.info,
+                                                      );
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              // Section: Other global variables
+                              Card(
+                                elevation: 2,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Other Global Variables',
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ListView.separated(
+                                        shrinkWrap: true,
+                                        physics:
+                                            const NeverScrollableScrollPhysics(),
+                                        itemCount: otherKeys.length,
+                                        separatorBuilder:
+                                            (_, __) => const Divider(),
+                                        itemBuilder: (context, idx) {
+                                          final key = otherKeys[idx];
+                                          final value = _globalVariables[key];
+                                          return ListTile(
+                                            title: Text(
+                                              key,
+                                              style: theme.textTheme.titleSmall
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                            ),
+                                            subtitle: SelectableText(
+                                              value is Map || value is List
+                                                  ? APP_LOGS.map2str(value)
+                                                  : value.toString(),
+                                              style: theme.textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                    fontFamily: 'monospace',
+                                                  ),
+                                            ),
+                                            onTap: () {
+                                              APP_LOGS.console(value);
+                                              showToastMessage(
+                                                context,
+                                                'Logged $key to console',
+                                                ToastLevel.info,
+                                              );
+                                            },
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       );
                     },
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+  // ...existing code...
 
   // Helper method to get database information
   Future<Map<String, dynamic>> _getDatabaseInfo() async {

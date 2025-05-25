@@ -1,4 +1,5 @@
 {
+    "version": "1.0.0",
     "theme": {
         "default": "light",
         "options": [
@@ -16,9 +17,8 @@
     "currency": {
         "default": "RM",
         "options": [
-            "USD",
-            "EUR",
-            "GBP"
+            "RM",
+            "YEN"
         ]
     },
     "cashier": {
@@ -64,5 +64,13 @@
         "theme": "light",
         "language": "ma",
         "currency": "RM"
+    },
+    "kiosk_info": {
+        "kiosk_id": "ID",
+        "kiosk_name": "NAME",
+        "kiosk_password": "PASSWORD",
+        "location": "Location",
+        "last_sync": "2023-10-01T12:00:00Z",
+        "registered": false
     }
 }

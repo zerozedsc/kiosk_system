@@ -1,14 +1,16 @@
 //export from configs
 export 'package:flutter/material.dart';
-export 'package:http/http.dart';
 export 'package:shared_preferences/shared_preferences.dart';
-export 'package:autocomplete_textfield/autocomplete_textfield.dart';
+// export 'package:autocomplete_textfield/autocomplete_textfield.dart';
 export 'package:flutter/services.dart';
-export 'package:flutter_typeahead/flutter_typeahead.dart';
+// export 'package:flutter_typeahead/flutter_typeahead.dart';
 export 'package:path_provider/path_provider.dart';
-export 'package:html/parser.dart';
 export 'package:fluttertoast/fluttertoast.dart';
 export 'package:bcrypt/bcrypt.dart';
+export 'package:restart_app/restart_app.dart';
+export 'package:image_picker/image_picker.dart';
+export 'package:flutter_image_compress/flutter_image_compress.dart';
+export 'package:flutter_typeahead/flutter_typeahead.dart'; // Add this import at the top
 
 export 'dart:convert';
 export 'dart:math';
@@ -22,11 +24,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart'; // Add this import statement
 import 'dart:io';
+import 'dart:math';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+
 import '../services/connection/bluetooth.dart';
 import '../services/connection/usb.dart';
 
@@ -40,7 +47,7 @@ BtPrinter? btPrinter;
 UsbManager? USB;
 bool canVibrate = false;
 // ignore: constant_identifier_names
-const bool DEBUG = true;
+const bool DEBUG = false;
 
 const double kTopSpacing = 12.0;
 const double kHorizontalSpacing = 10.0;
@@ -49,9 +56,9 @@ const double kInternalLargeSpacing = 12.0;
 const double kFABSpacing = 76.0;
 const double kDialogBottomSpacing = 24.0;
 
-Color primaryColor = Colors.orange.shade700;
-Color secondaryColor = Colors.orange.shade400;
-ColorScheme themeColorScheme = ColorScheme(
+final Color primaryColor = Colors.orange.shade700;
+final Color secondaryColor = Colors.orange.shade400;
+final ColorScheme themeColorScheme = ColorScheme(
   brightness: Brightness.light,
   primary: primaryColor,
   onPrimary: Colors.white,
@@ -77,7 +84,30 @@ ColorScheme themeColorScheme = ColorScheme(
     0.7,
   ), // Changed to use primaryColor with opacity instead of grey
 );
-ThemeData mainThemeData = ThemeData(
+final ColorScheme darkThemeColorScheme = ColorScheme(
+  brightness: Brightness.dark,
+  primary: primaryColor,
+  onPrimary: Colors.black,
+  secondary: secondaryColor,
+  onSecondary: Colors.black,
+  error: Colors.red.shade400,
+  onError: Colors.black,
+  background: Colors.grey.shade900,
+  onBackground: Colors.white,
+  surface: Colors.grey.shade800,
+  onSurface: Colors.white,
+  primaryContainer: primaryColor.withOpacity(0.25),
+  onPrimaryContainer: Colors.white,
+  secondaryContainer: secondaryColor.withOpacity(0.25),
+  onSecondaryContainer: Colors.white,
+  tertiary: primaryColor.withOpacity(0.7),
+  onTertiary: Colors.white,
+  tertiaryContainer: primaryColor.withOpacity(0.2),
+  onTertiaryContainer: Colors.white,
+  surfaceVariant: Colors.grey.shade700,
+  onSurfaceVariant: Colors.white70,
+);
+final ThemeData mainThemeData = ThemeData(
   // Use a completely custom ColorScheme instead of generating from seed
   colorScheme: themeColorScheme,
   useMaterial3: true,
@@ -130,6 +160,9 @@ ThemeData mainThemeData = ThemeData(
   ),
 );
 
+/// notifier for app state changes
+ValueNotifier<String> themeNotifier = ValueNotifier<String>("light");
+
 /// Class to play a sound effect
 class AudioManager {
   static final AudioManager _instance = AudioManager._internal();
@@ -176,14 +209,11 @@ class ConfigService {
   static Future<void> _copyConfigFileToWritableDirectory() async {
     final Directory appDocDir = await getApplicationDocumentsDirectory();
     final String configPath = '${appDocDir.path}/$_configFileName';
-
-    // Path to the config in assets
     final String assetConfigPath = _assetConfigPath;
 
-    // Check if the file already exists
+    // If the writable config does not exist, copy from asset (first run or after uninstall)
     if (FileSystemEntity.typeSync(configPath) ==
         FileSystemEntityType.notFound) {
-      // If not, load from assets and copy to the writable directory
       APP_LOGS.debug("$configPath not found. Copying from assets.");
       final ByteData data = await rootBundle.load(assetConfigPath);
       final List<int> bytes = data.buffer.asUint8List(
@@ -193,7 +223,7 @@ class ConfigService {
       await File(configPath).writeAsBytes(bytes);
       APP_LOGS.info("Config file copied to writable directory.");
     } else {
-      // Check if the assets config has been updated
+      // If in DEBUG mode and asset config has changed, overwrite writable config
       final ByteData assetData = await rootBundle.load(assetConfigPath);
       final List<int> assetBytes = assetData.buffer.asUint8List(
         assetData.offsetInBytes,
@@ -201,7 +231,6 @@ class ConfigService {
       );
       final List<int> writableBytes = await File(configPath).readAsBytes();
 
-      // Compare the bytes to determine if an update is needed
       if (!compareBytes(assetBytes, writableBytes) && DEBUG) {
         APP_LOGS.warning(
           "Config in assets has been updated. Replacing the writable config file...",
@@ -224,11 +253,21 @@ class ConfigService {
   }
 
   // Update the app configuration file json based on globalAppConfig in the writable directory
-  static Future<void> updateConfig() async {
-    final Directory appDocDir = await getApplicationDocumentsDirectory();
-    final String configPath = '${appDocDir.path}/$_configFileName';
+  static Future<bool> updateConfig() async {
+    try {
+      final Directory appDocDir = await getApplicationDocumentsDirectory();
+      final String configPath = '${appDocDir.path}/$_configFileName';
 
-    await File(configPath).writeAsString(json.encode(globalAppConfig));
+      await File(configPath).writeAsString(json.encode(globalAppConfig));
+      APP_LOGS.info("Config file updated successfully with updateConfig()");
+      // APP_LOGS.info(
+      //   "Config file updated successfully: ${APP_LOGS.map2str(globalAppConfig)}",
+      // );
+      return true;
+    } catch (e, s) {
+      APP_LOGS.error("Error updating config", e, s);
+      return false;
+    }
   }
 }
 
@@ -540,6 +579,7 @@ bool compareBytes(List<int> list1, List<int> list2) {
   return true;
 }
 
+/// Recursively removes the 'image' key from a map or list.
 dynamic removeImageKey(dynamic data) {
   if (data is Map) {
     return Map.fromEntries(
@@ -597,4 +637,97 @@ dynamic getDateTimeNow({
   }
   // Default: return formatted current date/time
   return DateFormat(format).format(DateTime.now());
+}
+
+/// Generates a strong password of the specified length.
+String generateStrongPassword(
+  int length, {
+  bool includeSpecialChars = false,
+  bool includeDigits = true,
+  bool includeUppercase = true,
+  bool includeLowercase = true,
+}) {
+  const String upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const String lower = 'abcdefghijklmnopqrstuvwxyz';
+  const String digits = '0123456789';
+  const String special = '@#\$%^&*()-_=+[]{}|;:,.<>?';
+  final String all =
+      (includeUppercase ? upper : '') +
+      (includeLowercase ? lower : '') +
+      (includeDigits ? digits : '') +
+      (includeSpecialChars ? special : '');
+  final rand = Random.secure();
+
+  // Ensure at least one character from each set
+  String password =
+      [
+        if (includeUppercase) upper[rand.nextInt(upper.length)],
+        if (includeLowercase) lower[rand.nextInt(lower.length)],
+        if (includeDigits) digits[rand.nextInt(digits.length)],
+        if (includeSpecialChars) special[rand.nextInt(special.length)],
+      ].join();
+
+  // Fill the rest with random chars
+  for (int i = password.length; i < length; i++) {
+    password += all[rand.nextInt(all.length)];
+  }
+
+  // Shuffle the password
+  List<String> chars = password.split('')..shuffle(rand);
+  return chars.join();
+}
+
+Future<Map<String, dynamic>> getCurrentAddress() async {
+  try {
+    // Try to get current position with a timeout (e.g., 8 seconds)
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.best,
+      timeLimit: const Duration(seconds: 8),
+    );
+
+    // Reverse geocode to get address
+    List<Placemark> placemarks = await placemarkFromCoordinates(
+      position.latitude,
+      position.longitude,
+    );
+
+    if (placemarks.isNotEmpty) {
+      final Placemark place = placemarks.first;
+      return {
+        "success": true,
+        "address":
+            "${place.name}, ${place.locality}, ${place.subAdministrativeArea}, ${place.administrativeArea}, ${place.country}",
+      };
+    } else {
+      return {"success": false, "message": "no_address_found"};
+    }
+  } on TimeoutException {
+    return {"success": false, "message": "location_timeout"};
+  } on PermissionDeniedException {
+    return {"success": false, "message": "location_permission_denied"};
+  } catch (e) {
+    // Fallback: Try to get location using IP-based service (internet)
+    try {
+      final uri = Uri.parse('https://ipapi.co/json/');
+      final response = await HttpClient()
+          .getUrl(uri)
+          .then((req) => req.close());
+      if (response.statusCode == 200) {
+        final jsonStr = await response.transform(utf8.decoder).join();
+        final data = json.decode(jsonStr);
+        final city = data['city'] ?? '';
+        final region = data['region'] ?? '';
+        final country = data['country_name'] ?? '';
+        final ip = data['ip'] ?? '';
+        if (city.isNotEmpty || region.isNotEmpty || country.isNotEmpty) {
+          return {
+            "success": true,
+            "address": "$city, $region, $country",
+            "ip": ip,
+          };
+        }
+      }
+    } catch (_) {}
+    return {"success": false, "message": "failed_to_get_location"};
+  }
 }

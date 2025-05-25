@@ -23,10 +23,27 @@ class HomepageService {
     try {
       HOMEPAGE_LOGS =
           await LoggingService(logName: "homepage_logs").initialize();
-      // getEmployeeData now returns a Map<String, Map<String, dynamic>>
-      final employees = await getEmployeeData(forceRefresh: true);
-      // Assign directly since it's already a map
-      employeeMap = employees;
+
+      employeeMap = EMPQUERY.employees;
+
+      dynamic catchAttendanceData = await attendanceSetGetter();
+      if (catchAttendanceData != null &&
+          catchAttendanceData is Map<String, Map<String, dynamic>>) {
+        // Store as a list of MapEntry<String, Map<String, dynamic>>
+        attendanceMaps = catchAttendanceData;
+      }
+
+      HOMEPAGE_LOGS.info('Homepage service initialized.');
+    } catch (e, stackTrace) {
+      APP_LOGS.error('Error initialize homepage service', e, stackTrace);
+    }
+    return this;
+  }
+
+  /// update employeeMap with new data
+  Future<void> updateEmployeeMap() async {
+    try {
+      employeeMap = EMPQUERY.employees;
 
       dynamic catchAttendanceData = await attendanceSetGetter();
       if (catchAttendanceData != null &&
@@ -35,64 +52,7 @@ class HomepageService {
         attendanceMaps = catchAttendanceData;
       }
     } catch (e, stackTrace) {
-      APP_LOGS.error('Error initialize homepage service', e, stackTrace);
-    }
-    return this;
-  }
-
-  void init() {
-    HOMEPAGE_LOGS.info('Homepage service initialized.');
-  }
-
-  void dispose() {
-    HOMEPAGE_LOGS.info('Homepage service disposed.');
-  }
-
-  /// Retrieves all employee data from the employee_info table
-  Future<Map<String, Map<String, dynamic>>> getEmployeeData({
-    bool forceRefresh = false,
-    bool activeOnly = false,
-  }) async {
-    try {
-      // If already cached and not forced, return as map
-      if (employeeMap.isNotEmpty && !forceRefresh) {
-        if (activeOnly) {
-          // Filter only active employees (exist == 1)
-          return {
-            for (var entry in employeeMap.entries)
-              if (entry.value['exist'] == 1) entry.key: entry.value,
-          };
-        }
-        return employeeMap;
-      }
-
-      // Query database for all employee data
-      final DatabaseQuery dbQuery = DatabaseQuery(db: DB, LOGS: HOMEPAGE_LOGS);
-
-      final List<Map<String, dynamic>> fetchedData = await dbQuery.fetchAllData(
-        'employee_info',
-      );
-
-      // Cache as map
-      employeeMap = {
-        for (var employee in fetchedData)
-          employee['id'].toString(): {...employee}..remove('id'),
-      };
-
-      HOMEPAGE_LOGS.info(
-        'Successfully retrieved ${fetchedData.length} employee records',
-      );
-
-      if (activeOnly) {
-        return {
-          for (var entry in employeeMap.entries)
-            if (entry.value['exist'] == 1) entry.key: entry.value,
-        };
-      }
-      return employeeMap;
-    } catch (e, stackTrace) {
-      HOMEPAGE_LOGS.error('Failed to retrieve employee data', e, stackTrace);
-      return {};
+      HOMEPAGE_LOGS.error('Error updating employee map', e, stackTrace);
     }
   }
 

@@ -1,7 +1,3 @@
-import 'package:image_picker/image_picker.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart'; // Add this import at the top
-
 import '../configs/configs.dart';
 import '../services/inventory/inventory_services.dart';
 

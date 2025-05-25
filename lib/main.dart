@@ -21,10 +21,14 @@ Future<void> runAppInitializations() async {
   // Initialize configuration
   globalAppConfig =
       await ConfigService.initializeConfig(); // Initialize app_config.json first
+  themeNotifier.value = globalAppConfig["userPreferences"]["theme"] ?? "light";
 
   // Initialize Database
   DBNAME = 'app.db';
   DB = await DatabaseConnection.getDatabase(dbName: DBNAME);
+  await getOrCreateEncryptionKey(); // Ensures key is generated/stored
+  EMPQUERY = EmployeeQuery(db: DB, logs: APP_LOGS);
+  await EMPQUERY.initialize();
   inventory = await InventoryServices().initialize();
   homepageService = await HomepageService().initialize();
 
@@ -66,45 +70,76 @@ class AppRoot extends StatefulWidget {
 class _AppRootState extends State<AppRoot> {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      locale: DevicePreview.locale(context),
-      builder: DevicePreview.appBuilder,
-      title: 'Kiosk System',
-      theme: mainThemeData,
-      darkTheme:
-          globalAppConfig["userPreferences"]["theme"] == "light"
-              ? mainThemeData
-              : ThemeData.dark().copyWith(
-                colorScheme: themeColorScheme.copyWith(
-                  brightness: Brightness.dark,
-                  background: Colors.grey.shade900,
-                  surface: Colors.grey.shade800,
-                  onBackground: Colors.white,
-                  onSurface: Colors.white,
-                ),
-                navigationRailTheme: NavigationRailThemeData(
-                  selectedIconTheme: IconThemeData(color: primaryColor),
-                  selectedLabelTextStyle: TextStyle(
-                    color: primaryColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  indicatorColor: primaryColor.withOpacity(0.2),
-                ),
+    return ValueListenableBuilder<String>(
+      valueListenable: themeNotifier,
+      builder: (context, themeValue, _) {
+        return MaterialApp(
+          locale: DevicePreview.locale(context),
+          builder: DevicePreview.appBuilder,
+          title: 'Kiosk System',
+          theme: mainThemeData,
+          darkTheme: ThemeData(
+            colorScheme: darkThemeColorScheme,
+            useMaterial3: true,
+            buttonTheme: ButtonThemeData(
+              buttonColor: primaryColor,
+              textTheme: ButtonTextTheme.primary,
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
               ),
-      home: Builder(
-        builder: (context) {
-          // Now we have a context with MaterialLocalizations
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            // Initialize Bluetooth in the background
-            checkPermissionsAndInitBluetooth(context);
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: primaryColor),
+            ),
+            outlinedButtonTheme: OutlinedButtonThemeData(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: primaryColor,
+                side: BorderSide(color: primaryColor),
+              ),
+            ),
+            iconTheme: IconThemeData(color: primaryColor),
+            appBarTheme: AppBarTheme(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            navigationRailTheme: NavigationRailThemeData(
+              backgroundColor: Colors.grey.shade900,
+              selectedIconTheme: IconThemeData(color: primaryColor),
+              selectedLabelTextStyle: TextStyle(
+                color: primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+              unselectedIconTheme: IconThemeData(color: Colors.grey),
+              unselectedLabelTextStyle: TextStyle(color: Colors.grey),
+              indicatorColor: primaryColor.withOpacity(0.2),
+              useIndicator: true,
+            ),
+          ),
+          themeMode: themeValue == "dark" ? ThemeMode.dark : ThemeMode.light,
+          home: Builder(
+            builder: (context) {
+              // Now we have a context with MaterialLocalizations
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                // Initialize Bluetooth in the background
+                checkPermissionsAndInitBluetooth(context);
 
-            // Initialize USB Manager in parallel
-            checkPermissionsAndInitUsb(context);
-          });
-          return const LoginPage();
-        },
-      ),
-      debugShowCheckedModeBanner: false,
+                // Initialize USB Manager in parallel
+                checkPermissionsAndInitUsb(context);
+              });
+              if (globalAppConfig["kiosk_info"]?["registered"]) {
+                // If the app is not registered, show the registration page
+                return const LoginPage();
+              } else {
+                return const SignupPage();
+              }
+            },
+          ),
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }

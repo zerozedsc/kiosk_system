@@ -18,6 +18,9 @@ class PageControllerClassState extends State<PageControllerClass> {
 
   final ValueNotifier<int> cashierReloadNotifier = ValueNotifier<int>(0);
   final ValueNotifier<int> inventoryReloadNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<int> homeReloadNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<int> moreReloadNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<int> debugReloadNotifier = ValueNotifier<int>(0);
 
   late final List<Widget> _children;
 
@@ -37,12 +40,12 @@ class PageControllerClassState extends State<PageControllerClass> {
 
     // Set up page children
     _children = [
-      const HomePage(),
+      HomePage(reloadNotifier: homeReloadNotifier),
       // Add placeholder widgets for other pages
       CashierPage(reloadNotifier: cashierReloadNotifier),
       InventoryPage(reloadNotifier: inventoryReloadNotifier),
-      const Center(child: Text('More Options')),
-      const DebugPage(),
+      const MorePage(),
+      DebugPage(reloadNotifier: debugReloadNotifier),
     ];
   }
 
@@ -57,6 +60,11 @@ class PageControllerClassState extends State<PageControllerClass> {
     // Simple index change without page controller
     await AudioManager().playSound(soundPath: 'assets/sounds/click.mp3');
     if (_currentIndex != index) {
+      if (index == 0) {
+        // Home tab index
+        homeReloadNotifier.value++;
+      }
+
       if (index == 1) {
         // Cashier tab index
         cashierReloadNotifier.value++;
@@ -65,6 +73,16 @@ class PageControllerClassState extends State<PageControllerClass> {
       if (index == 2) {
         // Inventory tab index
         inventoryReloadNotifier.value++;
+      }
+
+      if (index == 3) {
+        // More tab index
+        moreReloadNotifier.value++;
+      }
+
+      if (index == 4) {
+        // Debug tab index
+        debugReloadNotifier.value++;
       }
 
       setState(() {
@@ -103,7 +121,12 @@ class PageControllerClassState extends State<PageControllerClass> {
   ];
 
   @override
+  // ...existing code...
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       key: _scaffoldKey,
@@ -116,27 +139,30 @@ class PageControllerClassState extends State<PageControllerClass> {
               onDestinationSelected: onTabTapped,
               labelType: NavigationRailLabelType.all,
               destinations: navRailItems,
-              backgroundColor: Colors.white,
+              backgroundColor: theme.colorScheme.background,
               selectedIconTheme: IconThemeData(
-                color: primaryColor, // Use primaryColor directly
+                color: theme.colorScheme.primary,
               ),
-              unselectedIconTheme: IconThemeData(color: Colors.grey.shade600),
+              unselectedIconTheme: IconThemeData(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
               selectedLabelTextStyle: TextStyle(
-                color: primaryColor, // Use primaryColor directly
+                color: theme.colorScheme.primary,
                 fontWeight: FontWeight.bold,
               ),
               minWidth: 85,
               useIndicator: true,
-              indicatorColor: primaryColor.withOpacity(
-                0.2,
-              ), // Use primaryColor directly
+              indicatorColor: theme.colorScheme.primary.withOpacity(0.2),
             ),
 
             // Vertical divider between navigation rail and content
             VerticalDivider(
               thickness: 1,
               width: 1,
-              color: Colors.grey.withOpacity(0.2),
+              color:
+                  isDark
+                      ? Colors.white.withOpacity(0.08)
+                      : Colors.grey.withOpacity(0.2),
             ),
 
             // Main content area
@@ -148,4 +174,6 @@ class PageControllerClassState extends State<PageControllerClass> {
       ),
     );
   }
+
+  // ...existing code...
 }

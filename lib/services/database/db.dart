@@ -1,6 +1,9 @@
 import '../../configs/configs.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:crypto/crypto.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 export 'package:sqflite/sqflite.dart';
 
@@ -8,7 +11,6 @@ export 'package:sqflite/sqflite.dart';
 late String DBNAME;
 // ignore: non_constant_identifier_names
 late Database DB;
-late List<String> existPrefList;
 
 /// A utility class that manages SQLite database connections for the kiosk system.
 ///
@@ -409,16 +411,18 @@ class DatabaseQuery {
   ///   'email': 'john@example.com'
   /// });
   /// ```
-  Future<void> insertNewData(tableName, Map<String, dynamic> data) async {
+  Future<bool> insertNewData(tableName, Map<String, dynamic> data) async {
     try {
       await db.insert(
         tableName,
         data,
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
+      return true;
     } catch (e) {
       // error-handling
       LOGS.error('An error occurred while inserting data: $e');
+      return false;
     }
   }
 
@@ -743,7 +747,7 @@ class DatabaseQuery {
   /// ```dart
   /// await dbInstance.updateData('users', 5, {'name': 'John', 'email': 'john@example.com'});
   /// ```
-  Future<void> updateData(
+  Future<bool> updateData(
     tableName,
     whereCol,
     Map<String, dynamic> newData, {
@@ -756,9 +760,11 @@ class DatabaseQuery {
         where: '$whereColName=?',
         whereArgs: [whereCol],
       );
+      return true;
     } catch (e) {
       // error-handling
       LOGS.error('An error occurred while updating data: $e');
+      return false;
     }
   }
 
@@ -783,7 +789,7 @@ class DatabaseQuery {
   ///   ```dart
   ///   await updateCell('products', 42, 'in_stock', 0);
   ///   ```
-  Future<void> updateCell(
+  Future<bool> updateCell(
     String tableName,
     dynamic id,
     String columnName,
@@ -796,8 +802,10 @@ class DatabaseQuery {
         where: 'id = ?',
         whereArgs: [id],
       );
+      return true;
     } catch (e) {
       LOGS.error('An error occurred while updating cell data: $e');
+      return false;
     }
   }
 
@@ -814,12 +822,232 @@ class DatabaseQuery {
   ///   ```dart
   ///   await deleteData('users', 5);
   ///   ```
-  Future<void> deleteRowData(tableName, id) async {
+  Future<bool> deleteRowData(tableName, id) async {
     try {
       await db.delete(tableName, where: 'id = ?', whereArgs: [id]);
+      return true;
     } catch (e) {
       // error-handling
       LOGS.error('An error occurred while deleting data: $e');
+      return false;
     }
+  }
+}
+
+// ignore: non_constant_identifier_names
+late EmployeeQuery EMPQUERY;
+
+/// A singleton instance of the EmployeeQuery class that manages employee data.
+class EmployeeQuery {
+  final LoggingService logs;
+  final Database db;
+  Map<String, Map<String, dynamic>> employees = {};
+  int totalEmployees = 0;
+
+  EmployeeQuery({required this.db, required this.logs});
+
+  /// Initialize and cache all employee data
+  /// parameters:
+  /// - forceRefresh (bool):force refresh the data
+  /// - activeOnly (bool): filter only active employees
+  ///
+  /// Returns a map of employee data
+  Future<void> initialize() async {
+    employees = await getEmployeeData(employeeMap: employees, logs: logs);
+  }
+
+  /// Get employee data, optionally force refresh or filter active only
+  Future<Map<String, Map<String, dynamic>>> getEmployeeData({
+    Map<String, Map<String, dynamic>> employeeMap = const {},
+    bool forceRefresh = false,
+    bool activeOnly = true,
+    LoggingService? logs,
+  }) async {
+    try {
+      // If already cached and not forced, return as map
+      if (employeeMap.isNotEmpty && !forceRefresh) {
+        if (activeOnly) {
+          // Filter only active employees (exist == 1)
+          return {
+            for (var entry in employeeMap.entries)
+              if (entry.value['exist'] == 1) entry.key: entry.value,
+          };
+        }
+        return employeeMap;
+      }
+
+      // Query database for all employee data
+      final DatabaseQuery dbQuery = DatabaseQuery(db: db, LOGS: logs!);
+
+      final List<Map<String, dynamic>> fetchedData = await dbQuery.fetchAllData(
+        'employee_info',
+      );
+
+      // Cache as map
+      employeeMap = {
+        for (var employee in fetchedData)
+          employee['id'].toString(): {...employee}..remove('id'),
+      };
+      totalEmployees = employeeMap.length;
+      logs.info(
+        'Successfully retrieved ${fetchedData.length} employee records',
+      );
+
+      if (activeOnly) {
+        return {
+          for (var entry in employeeMap.entries)
+            if (entry.value['exist'] == 1) entry.key: entry.value,
+        };
+      }
+      return employeeMap;
+    } catch (e, stackTrace) {
+      logs?.error('Failed to retrieve employee data', e, stackTrace);
+      return {};
+    }
+  }
+
+  /// Upsert employee data (insert or update)
+  /// parameters:
+  /// - data (Map<String, dynamic>): employee data to insert/update
+  ///
+  /// Returns a boolean indicating success or failure
+  /// Throws:
+  /// - Log error message if insertion or update operation fails
+  ///
+  Future<bool> upsertEmployee(Map<String, dynamic> data) async {
+    try {
+      final dbQuery = DatabaseQuery(db: db, LOGS: logs);
+
+      String? id = data['id']?.toString();
+      bool isUpdate = id != null && employees.containsKey(id);
+
+      // Prepare data for insert/update
+      Map<String, dynamic> newData = Map<String, dynamic>.from(data);
+
+      // Handle password encryption
+      if (isUpdate) {
+        if (newData['password'] == null ||
+            (newData['password'] as String).isEmpty) {
+          newData.remove('password');
+        } else {
+          // Encrypt password and assign it directly
+          newData['password'] = await encryptPassword(newData['password']);
+        }
+        if (await dbQuery.updateData('employee_info', int.parse(id), newData)) {
+          logs.info('Updated employee with id $id');
+          // Manually update the employees map
+          employees[id!] = {...employees[id]!, ...newData};
+        } else {
+          logs.error('Failed to update employee with id $id');
+          return false;
+        }
+      } else {
+        if (newData['password'] == null ||
+            (newData['password'] as String).isEmpty) {
+          logs.error('Password required for new employee');
+          return false;
+        }
+        // Encrypt password and assign it directly
+        newData['password'] = await encryptPassword(newData['password']);
+        if (await dbQuery.insertNewData('employee_info', newData)) {
+          logs.info('Inserted new employee');
+          employees["${employees.length}"] = newData;
+          totalEmployees++;
+        } else {
+          logs.error('Failed to insert new employee');
+          return false;
+        }
+      }
+
+      return true;
+    } catch (e, stackTrace) {
+      logs.error('Failed to upsert employee', e, stackTrace);
+      return false;
+    }
+  }
+
+  /// Deletes (change exist to 0) an employee record by ID
+  ///
+  Future<bool> deleteEmployee(String id) async {
+    try {
+      final dbQuery = DatabaseQuery(db: db, LOGS: logs);
+      if (await dbQuery.updateData('employee_info', int.parse(id), {
+        'exist': 0,
+      }, whereColName: 'id')) {
+        employees.remove(id);
+        logs.info('Deleted employee with id $id');
+        return true;
+      } else {
+        logs.error('Failed to delete employee with id $id');
+        return false;
+      }
+    } catch (e, stackTrace) {
+      logs.error('Failed to delete employee', e, stackTrace);
+      return false;
+    }
+  }
+}
+
+/// FUNCTION RELATED TO DATABASE
+/// Retrieves all employee data from the employee_info table
+String encryptPasswordSHA(String password) {
+  final bytes = utf8.encode(password);
+  final digest = sha256.convert(bytes);
+  return digest.toString();
+}
+
+final FlutterSecureStorage secureStorage = FlutterSecureStorage();
+const String keyName = 'rOzErIyA_KeY';
+
+Future<String> getOrCreateEncryptionKey() async {
+  String? key = await secureStorage.read(key: keyName);
+
+  if (key == null) {
+    // Generate a secure random 32-byte key for AES-256
+    final newKey = encrypt.Key.fromSecureRandom(32);
+    key = newKey.base64;
+    await secureStorage.write(key: keyName, value: key);
+  }
+
+  return key;
+}
+
+Future<encrypt.Key> getEncryptionKey() async {
+  final keyString = await getOrCreateEncryptionKey();
+  return encrypt.Key.fromBase64(keyString);
+}
+
+Future<String> encryptPassword(String plain) async {
+  final key = await getEncryptionKey();
+  final iv = encrypt.IV.fromSecureRandom(16); // random IV
+  final encrypter = encrypt.Encrypter(encrypt.AES(key));
+  final encrypted = encrypter.encrypt(plain, iv: iv);
+  // Store IV + encrypted bytes as base64
+  final result = base64Encode(iv.bytes + encrypted.bytes);
+  return result;
+}
+
+Future<dynamic> decryptPassword(
+  String encryptedStr, {
+  String targetPassword = "",
+}) async {
+  try {
+    final key = await getEncryptionKey();
+    final bytes = base64Decode(encryptedStr);
+    final iv = encrypt.IV(bytes.sublist(0, 16));
+    final encryptedBytes = bytes.sublist(16);
+    final encrypter = encrypt.Encrypter(encrypt.AES(key));
+    final decrypted = encrypter.decrypt(
+      encrypt.Encrypted(encryptedBytes),
+      iv: iv,
+    );
+    if (targetPassword.isNotEmpty) {
+      // Compare the decrypted password with the target password
+      return decrypted == targetPassword;
+    }
+    return decrypted;
+  } catch (e, stack) {
+    APP_LOGS.error('Failed to decrypt password', e, stack);
+    return false;
   }
 }

@@ -1,3 +1,5 @@
+import 'package:kiosk_system/services/database/db.dart';
+
 import '../services/homepage/homepage_service.dart';
 
 import '../configs/configs.dart';
@@ -5,7 +7,8 @@ import '../configs/configs.dart';
 import '../components/toastmsg.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final ValueNotifier<int> reloadNotifier;
+  const HomePage({super.key, required this.reloadNotifier});
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -22,11 +25,20 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _initHomePage();
+    widget.reloadNotifier.addListener(() async {
+      await homepageService.updateEmployeeMap();
+      setState(() {
+        attendanceMaps = homepageService.attendanceMaps;
+      });
+    });
   }
 
   @override
   void dispose() {
     super.dispose();
+    widget.reloadNotifier.removeListener(() async {
+      await homepageService.updateEmployeeMap();
+    });
   }
 
   // Add this method to reload product data
@@ -101,13 +113,15 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Use the map and its entries correctly
-        ...attendanceMaps.entries.map((entry) {
-          final id = entry.key;
-          final empData = entry.value;
-          final emp = {...empData, 'id': id}; // Add employee ID to the map
+        ...attendanceMaps.entries
+            .where((entry) => entry.key != '0') // Skip key '0'
+            .map((entry) {
+              final id = entry.key;
+              final empData = entry.value;
+              final emp = {...empData, 'id': id}; // Add employee ID to the map
 
-          return _buildattendanceMapsTile(emp, mainColor);
-        }),
+              return _buildattendanceMapsTile(emp, mainColor);
+            }),
       ],
     );
   }
@@ -247,7 +261,10 @@ class _HomePageState extends State<HomePage> {
       }
 
       // Validate password
-      final isValid = BCrypt.checkpw(inputPassword, storedHash);
+      bool isValid = await decryptPassword(
+        storedHash,
+        targetPassword: inputPassword,
+      );
       if (!isValid) {
         setState(() {
           errorText = LOCALIZATION.localize('main_word.password_incorrect');
