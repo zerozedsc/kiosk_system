@@ -1031,6 +1031,8 @@ Future<dynamic> decryptPassword(
   String encryptedStr, {
   String targetPassword = "",
 }) async {
+  /// encryptedStr should be a base64 encoded string that contains IV + encrypted bytes
+  /// targetPassword is optional, if provided, it will compare the decrypted password with this value
   try {
     final key = await getEncryptionKey();
     final bytes = base64Decode(encryptedStr);
@@ -1048,6 +1050,22 @@ Future<dynamic> decryptPassword(
     return decrypted;
   } catch (e, stack) {
     APP_LOGS.error('Failed to decrypt password', e, stack);
+    return false;
+  }
+}
+
+Future<bool> adminAuth(String password) async {
+  try {
+    // final targetPassword = "password";
+    // final adminEncryptedPassword = await secureStorage.read(key: keyName) ?? "";
+    // final decrypted = await decryptPassword(
+    //   adminEncryptedPassword, targetPassword: targetPassword);
+    // if (decrypted is String) {
+    //   return decrypted == targetPassword;
+    // }
+    return true;
+  } catch (e, stack) {
+    APP_LOGS.error('Failed to check admin password', e, stack);
     return false;
   }
 }

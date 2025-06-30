@@ -1,0 +1,6 @@
+emulator -avd tab36-x86 -skin 2010x1200 -scale 1 -no-snapshot -no-boot-anim  
+
+adb -s emulator-5556 root
+adb pull /data/user/0/com.rozeriya.kiosksystem.debug/app_flutter/app.db
+
+kiosk_pass = 6pGCgq

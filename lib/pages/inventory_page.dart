@@ -1,5 +1,6 @@
 import '../configs/configs.dart';
 import '../services/inventory/inventory_services.dart';
+import '../services/database/db.dart';
 
 import '../components/buttonswithsound.dart';
 import '../components/toastmsg.dart';
@@ -9,12 +10,20 @@ class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key, required this.reloadNotifier});
 
   @override
-  State<InventoryPage> createState() => _InventoryPageState();
+  State<InventoryPage> createState() => InventoryPageState();
 }
 
-class _InventoryPageState extends State<InventoryPage>
+class InventoryPageState extends State<InventoryPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isAuthenticated = false;
+
+  // Add this method
+  void resetAuthentication() {
+    setState(() {
+      _isAuthenticated = false;
+    });
+  }
 
   @override
   void initState() {
@@ -23,6 +32,7 @@ class _InventoryPageState extends State<InventoryPage>
     widget.reloadNotifier.addListener(() async {
       await _reloadInventory();
     });
+    // Register the resetAuth callback if provided
   }
 
   @override
@@ -32,21 +42,132 @@ class _InventoryPageState extends State<InventoryPage>
     widget.reloadNotifier.removeListener(_reloadInventory);
   }
 
+  Future<void> _showAdminAuthDialog() async {
+    final TextEditingController _passwordController = TextEditingController();
+    bool _loading = false;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Text(
+                LOCALIZATION.localize("main_word.admin_auth") ??
+                    "Admin Authentication",
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    LOCALIZATION.localize("auth_page.enter_admin_password") ??
+                        "Enter admin password to access inventory.",
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText:
+                          LOCALIZATION.localize("auth_page.admin_password") ??
+                          "Admin Password",
+                      border: const OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) async {
+                      setStateDialog(() => _loading = true);
+                      bool valid = await adminAuth(_passwordController.text);
+                      setStateDialog(() => _loading = false);
+                      if (valid) {
+                        Navigator.of(context).pop();
+                        setState(() => _isAuthenticated = true);
+                      } else {
+                        showToastMessage(
+                          context,
+                          LOCALIZATION.localize("main_word.invalid_password") ??
+                              "Invalid password",
+                          ToastLevel.error,
+                        );
+                        _passwordController.clear();
+                      }
+                    },
+                  ),
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: CircularProgressIndicator(),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    setStateDialog(() => _loading = true);
+                    bool valid = await adminAuth(_passwordController.text);
+                    setStateDialog(() => _loading = false);
+                    if (valid) {
+                      Navigator.of(context).pop();
+                      setState(() => _isAuthenticated = true);
+                    } else {
+                      showToastMessage(
+                        context,
+                        LOCALIZATION.localize("main_word.invalid_password") ??
+                            "Invalid password",
+                        ToastLevel.error,
+                      );
+                      _passwordController.clear();
+                    }
+                  },
+                  child: Text(
+                    LOCALIZATION.localize("main_word.confirm") ?? "Confirm",
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _reloadInventory() async {
     await inventory.updateDataInVar();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isAuthenticated) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                LOCALIZATION.localize("main_word.admin_auth_required") ??
+                    "Admin authentication required.",
+                style: const TextStyle(fontSize: 18),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _showAdminAuthDialog,
+                child: Text(
+                  LOCALIZATION.localize("main_word.unlock_inventory") ??
+                      "Unlock Inventory",
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-
         appBar: AppBar(
-          automaticallyImplyLeading: false, // <-- Add this line
+          automaticallyImplyLeading: false,
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(18), // Thinner tab bar
+            preferredSize: const Size.fromHeight(18),
             child: Container(
               color: Theme.of(context).colorScheme.primary,
               child: TabBar(
@@ -72,7 +193,6 @@ class _InventoryPageState extends State<InventoryPage>
             ),
           ),
         ),
-
         body: TabBarView(
           controller: _tabController,
           children: [

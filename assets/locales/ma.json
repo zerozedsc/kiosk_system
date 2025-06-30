@@ -142,7 +142,14 @@
         "logout": "Log Keluar",
         "logout_desc": "Log keluar dari aplikasi",
         "logout_confirm": "Sahkan Log Keluar?",
-        "app_not_registered": "Kiosk belum didaftar. Sila daftar untuk menggunakan Kiosk ini"
+        "app_not_registered": "Kiosk belum didaftar. Sila daftar untuk menggunakan Kiosk ini",
+        "copied": "Disalin",
+        "today": "hari ini",
+        "this_hour": "jam ini",
+        "custom_range": "Julat Tarikh",
+        "transactions": "Transaksi",
+        "no_data": "Tiada Data",
+        "no_payment_data": "Tiada Data Pembayaran"
     },
     "home_page": {
         "title": "Laman Utama",
@@ -173,7 +180,14 @@
         "not_clocked_in": "Belum Clock In",
         "clocked_in": "Selamat Bekerja",
         "clocked_out": "Selamat Pulang",
-        "no_notifications": "Tiada Notifikasi"
+        "no_notifications": "Tiada Notifikasi",
+        "check_back_later": "Sila Semak Kemudian",
+        "advanced_summary": "Ringkasan Lanjutan",
+        "by_product": "Mengikut Produk",
+        "by_category": "Mengikut Kategori",
+        "unknown_category": "Kategori Tidak Diketahui",
+        "advanced_sales_summary": "Ringkasan Jualan Lanjutan",
+        "payment_method_summary": "Ringkasan Kaedah Pembayaran"
     },
     "auth_page": {
         "signup_kiosk": "Daftar Kiosk",
@@ -200,7 +214,8 @@
         "login_both_failed": "Salah ID dan kata laluan kiosk",
         "login_id_failed": "ID Kiosk tidak sah",
         "login_password_failed": "Kata laluan tidak sah",
-        "kiosk_credentials": "ID&Password Kiosk"
+        "kiosk_credentials": "ID&Password Kiosk",
+        "enter_admin_password": "Masukkan Kata Laluan Admin"
     },
     "cashier_page": {
         "title": "Juruwang",

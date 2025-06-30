@@ -1,5 +1,8 @@
 import '../../configs/configs.dart';
-import '../../services/database/db.dart';
+
+import '../database/db.dart';
+import '../analytics/analytics.dart';
+
 import '../../components/toastmsg.dart';
 
 // ignore: non_constant_identifier_names
@@ -10,6 +13,15 @@ class HomepageService {
   static final HomepageService _instance = HomepageService._internal();
   Map<String, Map<String, dynamic>> employeeMap = {}; // id as key
   Map<String, Map<String, dynamic>> attendanceMaps = {};
+  // Advanced sales summary data
+  Map<String, dynamic> liveSalesSummary = {
+    'orders': 0,
+    'profit': 0.0,
+    'bestSellingItem': '',
+  };
+  Map<String, int> productSales = {};
+  Map<String, int> categorySales = {};
+  Map<String, Map<String, dynamic>> paymentMethodSummary = {};
 
   factory HomepageService() {
     return _instance;
@@ -206,6 +218,187 @@ class HomepageService {
         stackTrace,
       );
       return "attendance_save_error";
+    }
+  }
+
+  /// Update live sales summary (orders, profit, best selling item)
+  Future<void> updateLiveSalesSummary() async {
+    final dbQuery = DatabaseQuery(db: DB, LOGS: HOMEPAGE_LOGS);
+    final analytics = KioskAnalyticsService(dbQuery: dbQuery);
+
+    final today = DateTime.now();
+    final dateStr =
+        "${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+
+    // Orders = number of transactions today
+    final transactions = await dbQuery.fetchAllData('kiosk_transaction');
+    int orders =
+        transactions.where((row) {
+          final ts = row['timestamp'];
+          final dt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+          final dStr =
+              "${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+          return dStr == dateStr;
+        }).length;
+
+    // Profit = total sales today * 0.2 (or your logic)
+    double profit = await analytics.getTotalSalesForDate(dateStr) * 0.2;
+
+    // Best selling item today
+    final productSalesToday = await analytics.getProductSalesCountForDate(
+      dateStr,
+    );
+    String bestSellingItem = '';
+    int maxSold = 0;
+    productSalesToday.forEach((name, qty) {
+      if (qty > maxSold) {
+        maxSold = qty;
+        bestSellingItem = name;
+      }
+    });
+
+    liveSalesSummary = {
+      'orders': orders,
+      'profit': profit,
+      'bestSellingItem': bestSellingItem,
+    };
+  }
+
+  /// Fetch and cache advanced sales summary (by product and by category) for today
+  Future<void> updateAdvancedSalesSummary() async {
+    final dbQuery = DatabaseQuery(db: DB, LOGS: HOMEPAGE_LOGS);
+    final analytics = KioskAnalyticsService(dbQuery: dbQuery);
+
+    final today = DateTime.now();
+    final dateStr =
+        "${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+
+    // Product sales
+    final productSalesToday = await analytics.getProductSalesCountForDate(
+      dateStr,
+    );
+
+    // Category sales: group by category (requires fetching product info)
+    final products = await dbQuery.fetchAllData('kiosk_product');
+    final Map<String, String> productToCategory = {
+      for (var p in products) p['name']: p['categories'],
+    };
+    final Map<String, int> categorySalesToday = {};
+    productSalesToday.forEach((product, qty) {
+      final category = productToCategory[product] ?? 'SET';
+      categorySalesToday[category] = (categorySalesToday[category] ?? 0) + qty;
+    });
+
+    productSales = productSalesToday;
+    categorySales = categorySalesToday;
+  }
+
+  /// Fetch and cache advanced sales summary (by product and by category) for a given range
+  Future<void> updateAdvancedSalesSummaryWithRange({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final dbQuery = DatabaseQuery(db: DB, LOGS: HOMEPAGE_LOGS);
+    final analytics = KioskAnalyticsService(dbQuery: dbQuery);
+
+    // Product sales for range
+    final List<Map<String, dynamic>> transactions = await dbQuery.fetchAllData(
+      'kiosk_transaction',
+    );
+    final Map<String, int> productSalesRange = {};
+    final Map<String, int> categorySalesRange = {};
+
+    // Get product info for category mapping
+    final products = await dbQuery.fetchAllData('kiosk_product');
+    final Map<String, String> productToCategory = {
+      for (var p in products) p['name']: p['categories'],
+    };
+
+    for (final row in transactions) {
+      final ts = row['timestamp'];
+      final dt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+      if (!dt.isBefore(start) && !dt.isAfter(end)) {
+        final receiptList = row['receipt_list'];
+        if (receiptList is String) {
+          final List<dynamic> items = analytics.parseJsonList(receiptList);
+          for (final item in items) {
+            final name = item['name'] ?? '';
+            final qty = item['quantity'] ?? 0;
+            productSalesRange[name] =
+                ((productSalesRange[name] ?? 0) + qty).toInt();
+            final category = productToCategory[name] ?? 'SET';
+            categorySalesRange[category] =
+                ((categorySalesRange[category] ?? 0) + qty).toInt();
+          }
+        }
+      }
+    }
+
+    productSales = productSalesRange;
+    categorySales = categorySalesRange;
+  }
+
+  /// [300625] Payment method summary for a given range
+  Future<void> updatePaymentMethodSummaryWithRange({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final dbQuery = DatabaseQuery(db: DB, LOGS: HOMEPAGE_LOGS);
+    final List<Map<String, dynamic>> transactions = await dbQuery.fetchAllData(
+      'kiosk_transaction',
+    );
+    final Map<String, Map<String, dynamic>> summary = {};
+
+    for (final row in transactions) {
+      final ts = row['timestamp'];
+      final dt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+      if (!dt.isBefore(start) && !dt.isAfter(end)) {
+        final method = row['payment_method'] ?? 'Unknown';
+        final amount =
+            (row['total_amount'] is num)
+                ? (row['total_amount'] as num).toDouble()
+                : double.tryParse(row['total_amount']?.toString() ?? '') ?? 0.0;
+        summary[method] ??= {'count': 0, 'total': 0.0};
+        summary[method]!['count'] += 1;
+        summary[method]!['total'] += amount;
+      }
+    }
+    paymentMethodSummary = summary;
+  }
+
+  /// [300625] Export combined report for a given range in specified format
+  Future<File> exportCombinedReport({
+    required DateTime start,
+    required DateTime end,
+    required String format, // 'txt' or 'pdf'
+  }) async {
+    final analytics = KioskAnalyticsService(
+      dbQuery: DatabaseQuery(db: DB, LOGS: HOMEPAGE_LOGS),
+    );
+    // Fetch inventory changes for the range
+    final inventoryChange = await analytics.getInventoryChangeForRange(
+      start,
+      end,
+    );
+
+    if (format == 'txt') {
+      return analytics.generateCombinedReportTxt(
+        start: start,
+        end: end,
+        productSales: productSales,
+        categorySales: categorySales,
+        paymentSummary: paymentMethodSummary,
+        inventoryChange: inventoryChange,
+      );
+    } else {
+      return analytics.generateCombinedReportPdf(
+        start: start,
+        end: end,
+        productSales: productSales,
+        categorySales: categorySales,
+        paymentSummary: paymentMethodSummary,
+        inventoryChange: inventoryChange,
+      );
     }
   }
 }

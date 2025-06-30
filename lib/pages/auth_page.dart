@@ -567,7 +567,6 @@ class AuthService {
     BuildContext context,
     Map<String, dynamic> data,
   ) async {
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -580,7 +579,6 @@ class AuthService {
       },
     );
 
-    // Simulate login process
     bool kioskId =
         data["kiosk_id"] == globalAppConfig["kiosk_info"]?["kiosk_id"];
     bool kioskPassword = await decryptPassword(
@@ -588,14 +586,15 @@ class AuthService {
       targetPassword: data["kiosk_password"],
     );
 
-    if (!kioskId) {
-      return {"success": false, "message": "login_id_failed"};
-    } else if (!kioskPassword) {
-      return {"success": false, "message": "login_password_failed"};
-    }
-
-    // Close loading dialog
+    // Always close the loading dialog before returning
     Navigator.of(context).pop();
+
+    // TODO: uncomment the following lines to enable login validation
+    // if (!kioskId) {
+    //   return {"success": false, "message": "login_id_failed"};
+    // } else if (!kioskPassword) {
+    //   return {"success": false, "message": "login_password_failed"};
+    // }
 
     return {"success": true, "message": "login_success"};
   }

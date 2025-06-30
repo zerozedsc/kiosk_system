@@ -15,6 +15,8 @@ class PageControllerClassState extends State<PageControllerClass> {
   late String initialQuery;
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<InventoryPageState> inventoryPageKey =
+      GlobalKey<InventoryPageState>();
 
   final ValueNotifier<int> cashierReloadNotifier = ValueNotifier<int>(0);
   final ValueNotifier<int> inventoryReloadNotifier = ValueNotifier<int>(0);
@@ -43,7 +45,10 @@ class PageControllerClassState extends State<PageControllerClass> {
       HomePage(reloadNotifier: homeReloadNotifier),
       // Add placeholder widgets for other pages
       CashierPage(reloadNotifier: cashierReloadNotifier),
-      InventoryPage(reloadNotifier: inventoryReloadNotifier),
+      InventoryPage(
+        key: inventoryPageKey,
+        reloadNotifier: inventoryReloadNotifier,
+      ),
       const MorePage(),
       DebugPage(reloadNotifier: debugReloadNotifier),
     ];
@@ -73,6 +78,8 @@ class PageControllerClassState extends State<PageControllerClass> {
       if (index == 2) {
         // Inventory tab index
         inventoryReloadNotifier.value++;
+        // Reset authentication when entering Inventory tab
+        inventoryPageKey.currentState?.resetAuthentication();
       }
 
       if (index == 3) {

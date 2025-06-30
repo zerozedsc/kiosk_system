@@ -130,7 +130,6 @@ class _DebugPageState extends State<DebugPage>
     }
   }
 
-  // ...existing code...
   Widget _buildGlobalVariablesTab() {
     final theme = Theme.of(context);
     ;
@@ -153,12 +152,78 @@ class _DebugPageState extends State<DebugPage>
             ),
           ),
           const SizedBox(height: 16),
+
           ElevatedButton.icon(
             onPressed: _loadGlobalVariables,
             icon: const Icon(Icons.refresh),
             label: const Text('Refresh Variables'),
           ),
           const SizedBox(height: 16),
+
+          // Password Decryptor UI
+          StatefulBuilder(
+            builder: (context, setState) {
+              final TextEditingController _decryptController =
+                  TextEditingController();
+              final ValueNotifier<String?> _decryptedPassword =
+                  ValueNotifier<String?>(null);
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Decrypt Password',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _decryptController,
+                          decoration: const InputDecoration(
+                            labelText: 'Encrypted Password',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final encrypted = _decryptController.text.trim();
+                          if (encrypted.isEmpty) return;
+                          final result = await decryptPassword(encrypted);
+                          _decryptedPassword.value =
+                              result is String ? result : 'Failed to decrypt';
+                        },
+                        child: const Text('Decrypt'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ValueListenableBuilder<String?>(
+                    valueListenable: _decryptedPassword,
+                    builder: (context, value, _) {
+                      if (value == null) return const SizedBox.shrink();
+                      return SelectableText(
+                        'Decrypted: $value',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontFamily: 'monospace',
+                          color: theme.colorScheme.secondary,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+
           Expanded(
             child: Row(
               children: [
@@ -316,6 +381,7 @@ class _DebugPageState extends State<DebugPage>
                                                     ),
                                               ),
                                               const SizedBox(height: 8),
+
                                               Container(
                                                 constraints:
                                                     const BoxConstraints(
@@ -355,6 +421,7 @@ class _DebugPageState extends State<DebugPage>
                                                 ),
                                               ),
                                               const SizedBox(height: 12),
+
                                               Row(
                                                 children: [
                                                   ElevatedButton.icon(
@@ -488,7 +555,6 @@ class _DebugPageState extends State<DebugPage>
       ),
     );
   }
-  // ...existing code...
 
   // Helper method to get database information
   Future<Map<String, dynamic>> _getDatabaseInfo() async {

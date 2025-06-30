@@ -1147,12 +1147,8 @@ class _MorePageState extends State<MorePage> {
                                                   final input =
                                                       adminController.text;
                                                   // Replace this with your real admin password check logic
-                                                  bool
-                                                  isValid = await decryptPassword(
-                                                    EMPQUERY
-                                                        .employees["0"]?["password"],
-                                                    targetPassword: input,
-                                                  );
+                                                  bool isValid =
+                                                      await adminAuth(input);
                                                   if (isValid) {
                                                     Navigator.of(
                                                       context,
@@ -1248,12 +1244,8 @@ class _MorePageState extends State<MorePage> {
                                                   final input =
                                                       adminController.text;
                                                   // Replace this with your real admin password check logic
-                                                  bool
-                                                  isValid = await decryptPassword(
-                                                    EMPQUERY
-                                                        .employees["0"]?["password"],
-                                                    targetPassword: input,
-                                                  );
+                                                  bool isValid =
+                                                      await adminAuth(input);
                                                   if (isValid) {
                                                     Navigator.of(
                                                       context,
@@ -1369,12 +1361,8 @@ class _MorePageState extends State<MorePage> {
                                                       adminController.text;
                                                   // Example: check against a hardcoded password or use your own logic
 
-                                                  bool
-                                                  isValid = await decryptPassword(
-                                                    EMPQUERY
-                                                        .employees["0"]?["password"],
-                                                    targetPassword: input,
-                                                  );
+                                                  bool isValid =
+                                                      await adminAuth(input);
 
                                                   if (isValid) {
                                                     Navigator.of(
@@ -1430,6 +1418,29 @@ class _MorePageState extends State<MorePage> {
                                                 decrypted,
                                               ),
                                               actions: [
+                                                TextButton(
+                                                  onPressed: () {
+                                                    Clipboard.setData(
+                                                      ClipboardData(
+                                                        text: decrypted,
+                                                      ),
+                                                    );
+                                                    showToastMessage(
+                                                      context,
+                                                      LOCALIZATION.localize(
+                                                            'main_word.copied',
+                                                          ) ??
+                                                          "Copied to clipboard",
+                                                      ToastLevel.success,
+                                                    );
+                                                  },
+                                                  child: Text(
+                                                    LOCALIZATION.localize(
+                                                          'main_word.copy',
+                                                        ) ??
+                                                        "Copy",
+                                                  ),
+                                                ),
                                                 TextButton(
                                                   onPressed:
                                                       () =>
@@ -1550,6 +1561,7 @@ class _MorePageState extends State<MorePage> {
                               ],
                             ),
                             const SizedBox(height: 18),
+
                             ListTile(
                               leading: Icon(
                                 Icons.location_on,
@@ -1563,6 +1575,7 @@ class _MorePageState extends State<MorePage> {
                               ),
                               subtitle: Text(kioskInfo["location"]),
                             ),
+
                             ListTile(
                               leading: Icon(
                                 Icons.confirmation_number,
@@ -1574,6 +1587,7 @@ class _MorePageState extends State<MorePage> {
                               ),
                               subtitle: Text(kioskInfo["id"]),
                             ),
+
                             ListTile(
                               leading: Icon(Icons.update, color: mainColor),
                               title: Text(
@@ -1582,6 +1596,7 @@ class _MorePageState extends State<MorePage> {
                               ),
                               subtitle: Text(kioskInfo["lastSync"]),
                             ),
+
                             ListTile(
                               leading: Icon(
                                 Icons.info_outline,
@@ -1594,6 +1609,7 @@ class _MorePageState extends State<MorePage> {
                               subtitle: Text(kioskInfo["version"]),
                             ),
                             const SizedBox(height: 12),
+
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
@@ -1612,31 +1628,1042 @@ class _MorePageState extends State<MorePage> {
                                     ),
                                   ),
                                   onPressed: () async {
+                                    final TextEditingController
+                                    kioskNameController =
+                                        TextEditingController();
+                                    final TextEditingController
+                                    locationController =
+                                        TextEditingController();
+                                    final TextEditingController
+                                    currentPasswordController =
+                                        TextEditingController();
+                                    final TextEditingController
+                                    newPasswordController =
+                                        TextEditingController();
+                                    final TextEditingController
+                                    confirmPasswordController =
+                                        TextEditingController();
+
+                                    // Pre-fill with current values
+                                    kioskNameController.text =
+                                        globalAppConfig['kiosk_info']['kiosk_name'] ??
+                                        '';
+                                    locationController.text =
+                                        globalAppConfig['kiosk_info']['location'] ??
+                                        '';
+
                                     showDialog(
                                       context: context,
+                                      barrierDismissible: false,
                                       builder:
                                           (context) => AlertDialog(
-                                            title: Text(
-                                              LOCALIZATION.localize(
-                                                    'more_page.adjust_kiosk_info',
-                                                  ) ??
-                                                  "Adjust Kiosk Info",
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
                                             ),
-                                            content: Text(
-                                              "Adjust kiosk info dialog goes here.",
+                                            backgroundColor:
+                                                theme.colorScheme.surface,
+                                            elevation: 10,
+                                            title: Container(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 16,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                border: Border(
+                                                  bottom: BorderSide(
+                                                    color: mainColor
+                                                        .withOpacity(0.3),
+                                                    width: 2,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.all(8),
+                                                    decoration: BoxDecoration(
+                                                      color: mainColor
+                                                          .withOpacity(0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            10,
+                                                          ),
+                                                    ),
+                                                    child: Icon(
+                                                      Icons.edit,
+                                                      color: mainColor,
+                                                      size: 24,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+
+                                                  Expanded(
+                                                    child: Text(
+                                                      LOCALIZATION.localize(
+                                                            'more_page.adjust_kiosk_info',
+                                                          ) ??
+                                                          "Adjust Kiosk Info",
+                                                      style: theme
+                                                          .textTheme
+                                                          .titleLarge
+                                                          ?.copyWith(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: mainColor,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            content: Container(
+                                              width: double.maxFinite,
+                                              constraints: const BoxConstraints(
+                                                maxWidth: 500,
+                                                maxHeight: 400,
+                                              ),
+                                              child: SingleChildScrollView(
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const SizedBox(height: 16),
+
+                                                    // Kiosk Name Field
+                                                    Container(
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: mainColor
+                                                              .withOpacity(0.3),
+                                                          width: 1,
+                                                        ),
+                                                      ),
+                                                      child: TextField(
+                                                        controller:
+                                                            kioskNameController,
+                                                        decoration: InputDecoration(
+                                                          labelText:
+                                                              LOCALIZATION.localize(
+                                                                'auth_page.kiosk_name',
+                                                              ) ??
+                                                              "Kiosk Name",
+                                                          labelStyle: TextStyle(
+                                                            color: mainColor,
+                                                          ),
+                                                          border:
+                                                              InputBorder.none,
+                                                          contentPadding:
+                                                              const EdgeInsets.all(
+                                                                16,
+                                                              ),
+                                                          prefixIcon: Icon(
+                                                            Icons.store,
+                                                            color: mainColor,
+                                                          ),
+                                                          floatingLabelBehavior:
+                                                              FloatingLabelBehavior
+                                                                  .always,
+                                                        ),
+                                                        style:
+                                                            theme
+                                                                .textTheme
+                                                                .bodyLarge,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 20),
+
+                                                    // Location Field
+                                                    Container(
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: mainColor
+                                                              .withOpacity(0.3),
+                                                          width: 1,
+                                                        ),
+                                                      ),
+                                                      child: TextField(
+                                                        controller:
+                                                            locationController,
+                                                        decoration: InputDecoration(
+                                                          labelText:
+                                                              LOCALIZATION.localize(
+                                                                'auth_page.location',
+                                                              ) ??
+                                                              "Location",
+                                                          labelStyle: TextStyle(
+                                                            color: mainColor,
+                                                          ),
+                                                          border:
+                                                              InputBorder.none,
+                                                          contentPadding:
+                                                              const EdgeInsets.all(
+                                                                16,
+                                                              ),
+                                                          prefixIcon: Icon(
+                                                            Icons.location_on,
+                                                            color: mainColor,
+                                                          ),
+                                                          suffixIcon: IconButton(
+                                                            icon: Icon(
+                                                              Icons.my_location,
+                                                              color: mainColor,
+                                                            ),
+                                                            tooltip:
+                                                                LOCALIZATION
+                                                                    .localize(
+                                                                      'main_word.get_location',
+                                                                    ) ??
+                                                                "Get Current Location",
+                                                            onPressed: () async {
+                                                              // Show loading
+                                                              showDialog(
+                                                                context:
+                                                                    context,
+                                                                barrierDismissible:
+                                                                    false,
+                                                                builder:
+                                                                    (
+                                                                      context,
+                                                                    ) => Center(
+                                                                      child: Container(
+                                                                        padding:
+                                                                            const EdgeInsets.all(
+                                                                              20,
+                                                                            ),
+                                                                        decoration: BoxDecoration(
+                                                                          color:
+                                                                              theme.colorScheme.surface,
+                                                                          borderRadius: BorderRadius.circular(
+                                                                            10,
+                                                                          ),
+                                                                        ),
+                                                                        child: Column(
+                                                                          mainAxisSize:
+                                                                              MainAxisSize.min,
+                                                                          children: [
+                                                                            CircularProgressIndicator(
+                                                                              color:
+                                                                                  mainColor,
+                                                                            ),
+                                                                            const SizedBox(
+                                                                              height:
+                                                                                  16,
+                                                                            ),
+                                                                            Text(
+                                                                              LOCALIZATION.localize(
+                                                                                    'main_word.getting_location',
+                                                                                  ) ??
+                                                                                  "Getting location...",
+                                                                              style:
+                                                                                  theme.textTheme.bodyMedium,
+                                                                            ),
+                                                                          ],
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                              );
+
+                                                              try {
+                                                                Map<
+                                                                  String,
+                                                                  dynamic
+                                                                >
+                                                                address =
+                                                                    await getCurrentAddress();
+                                                                Navigator.of(
+                                                                  context,
+                                                                ).pop(); // Close loading dialog
+
+                                                                if (address["success"]) {
+                                                                  locationController
+                                                                          .text =
+                                                                      address["address"];
+                                                                } else {
+                                                                  showToastMessage(
+                                                                    context,
+                                                                    "Failed to get location: ${address["message"]}",
+                                                                    ToastLevel
+                                                                        .error,
+                                                                  );
+                                                                }
+                                                              } catch (e) {
+                                                                Navigator.of(
+                                                                  context,
+                                                                ).pop(); // Close loading dialog
+                                                                showToastMessage(
+                                                                  context,
+                                                                  LOCALIZATION.localize(
+                                                                        'auth_page.failed_to_get_location',
+                                                                      ) ??
+                                                                      "Failed to get location",
+                                                                  ToastLevel
+                                                                      .error,
+                                                                );
+                                                              }
+                                                            },
+                                                          ),
+                                                          floatingLabelBehavior:
+                                                              FloatingLabelBehavior
+                                                                  .always,
+                                                        ),
+                                                        style:
+                                                            theme
+                                                                .textTheme
+                                                                .bodyLarge,
+                                                        maxLines: 2,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 24),
+
+                                                    // Info Card
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            16,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: mainColor
+                                                            .withOpacity(0.05),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: mainColor
+                                                              .withOpacity(0.2),
+                                                          width: 1,
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(
+                                                            Icons.info_outline,
+                                                            color: mainColor,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 12,
+                                                          ),
+                                                          Expanded(
+                                                            child: Text(
+                                                              LOCALIZATION.localize(
+                                                                    'more_page.kiosk_info_note',
+                                                                  ) ??
+                                                                  "These changes will be saved to your local configuration and can be synced later.",
+                                                              style: theme
+                                                                  .textTheme
+                                                                  .bodySmall
+                                                                  ?.copyWith(
+                                                                    color:
+                                                                        mainColor,
+                                                                  ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 20),
+
+                                                    // Change Kiosk Password Section
+                                                    Container(
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: mainColor
+                                                              .withOpacity(0.3),
+                                                          width: 1,
+                                                        ),
+                                                      ),
+                                                      child: ExpansionTile(
+                                                        leading: Icon(
+                                                          Icons.lock_reset,
+                                                          color: mainColor,
+                                                        ),
+                                                        title: Text(
+                                                          LOCALIZATION.localize(
+                                                                'more_page.change_kiosk_password',
+                                                              ) ??
+                                                              "Change Kiosk Password",
+                                                          style: theme
+                                                              .textTheme
+                                                              .bodyLarge
+                                                              ?.copyWith(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500,
+                                                              ),
+                                                        ),
+                                                        children: [
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets.all(
+                                                                  16.0,
+                                                                ),
+                                                            child: Column(
+                                                              children: [
+                                                                // Current Password Field
+                                                                Container(
+                                                                  decoration: BoxDecoration(
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          8,
+                                                                        ),
+                                                                    border: Border.all(
+                                                                      color: mainColor
+                                                                          .withOpacity(
+                                                                            0.3,
+                                                                          ),
+                                                                      width: 1,
+                                                                    ),
+                                                                  ),
+                                                                  child: TextField(
+                                                                    controller:
+                                                                        currentPasswordController,
+                                                                    obscureText:
+                                                                        true,
+                                                                    decoration: InputDecoration(
+                                                                      labelText:
+                                                                          LOCALIZATION.localize(
+                                                                            'auth_page.current_password',
+                                                                          ) ??
+                                                                          "Current Password",
+                                                                      labelStyle:
+                                                                          TextStyle(
+                                                                            color:
+                                                                                mainColor,
+                                                                          ),
+                                                                      border:
+                                                                          InputBorder
+                                                                              .none,
+                                                                      contentPadding:
+                                                                          const EdgeInsets.all(
+                                                                            12,
+                                                                          ),
+                                                                      prefixIcon: Icon(
+                                                                        Icons
+                                                                            .lock_outline,
+                                                                        color:
+                                                                            mainColor,
+                                                                      ),
+                                                                    ),
+                                                                    style:
+                                                                        theme
+                                                                            .textTheme
+                                                                            .bodyLarge,
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  height: 12,
+                                                                ),
+
+                                                                // New Password Field
+                                                                Container(
+                                                                  decoration: BoxDecoration(
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          8,
+                                                                        ),
+                                                                    border: Border.all(
+                                                                      color: mainColor
+                                                                          .withOpacity(
+                                                                            0.3,
+                                                                          ),
+                                                                      width: 1,
+                                                                    ),
+                                                                  ),
+                                                                  child: TextField(
+                                                                    controller:
+                                                                        newPasswordController,
+                                                                    obscureText:
+                                                                        true,
+                                                                    decoration: InputDecoration(
+                                                                      labelText:
+                                                                          LOCALIZATION.localize(
+                                                                            'auth_page.new_password',
+                                                                          ) ??
+                                                                          "New Password",
+                                                                      labelStyle:
+                                                                          TextStyle(
+                                                                            color:
+                                                                                mainColor,
+                                                                          ),
+                                                                      border:
+                                                                          InputBorder
+                                                                              .none,
+                                                                      contentPadding:
+                                                                          const EdgeInsets.all(
+                                                                            12,
+                                                                          ),
+                                                                      prefixIcon: Icon(
+                                                                        Icons
+                                                                            .lock,
+                                                                        color:
+                                                                            mainColor,
+                                                                      ),
+                                                                      suffixIcon: IconButton(
+                                                                        icon: Icon(
+                                                                          Icons
+                                                                              .auto_awesome,
+                                                                          color:
+                                                                              mainColor,
+                                                                        ),
+                                                                        tooltip:
+                                                                            LOCALIZATION.localize(
+                                                                              'main_word.generate',
+                                                                            ) ??
+                                                                            "Generate",
+                                                                        onPressed: () {
+                                                                          newPasswordController
+                                                                              .text = generateStrongPassword(
+                                                                            8,
+                                                                          );
+                                                                        },
+                                                                      ),
+                                                                    ),
+                                                                    style:
+                                                                        theme
+                                                                            .textTheme
+                                                                            .bodyLarge,
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  height: 12,
+                                                                ),
+
+                                                                // Confirm New Password Field
+                                                                Container(
+                                                                  decoration: BoxDecoration(
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          8,
+                                                                        ),
+                                                                    border: Border.all(
+                                                                      color: mainColor
+                                                                          .withOpacity(
+                                                                            0.3,
+                                                                          ),
+                                                                      width: 1,
+                                                                    ),
+                                                                  ),
+                                                                  child: TextField(
+                                                                    controller:
+                                                                        confirmPasswordController,
+                                                                    obscureText:
+                                                                        true,
+                                                                    decoration: InputDecoration(
+                                                                      labelText:
+                                                                          LOCALIZATION.localize(
+                                                                            'auth_page.confirm_password',
+                                                                          ) ??
+                                                                          "Confirm New Password",
+                                                                      labelStyle:
+                                                                          TextStyle(
+                                                                            color:
+                                                                                mainColor,
+                                                                          ),
+                                                                      border:
+                                                                          InputBorder
+                                                                              .none,
+                                                                      contentPadding:
+                                                                          const EdgeInsets.all(
+                                                                            12,
+                                                                          ),
+                                                                      prefixIcon: Icon(
+                                                                        Icons
+                                                                            .lock_outline,
+                                                                        color:
+                                                                            mainColor,
+                                                                      ),
+                                                                    ),
+                                                                    style:
+                                                                        theme
+                                                                            .textTheme
+                                                                            .bodyLarge,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
                                             ),
                                             actions: [
-                                              TextButton(
-                                                onPressed:
-                                                    () =>
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 8,
+                                                    ),
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.end,
+                                                  children: [
+                                                    // Cancel Button
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        kioskNameController
+                                                            .dispose();
+                                                        locationController
+                                                            .dispose();
                                                         Navigator.of(
                                                           context,
-                                                        ).pop(),
-                                                child: Text(
-                                                  LOCALIZATION.localize(
-                                                        'main_word.close',
-                                                      ) ??
-                                                      "Close",
+                                                        ).pop();
+                                                      },
+                                                      style: TextButton.styleFrom(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 24,
+                                                              vertical: 12,
+                                                            ),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                10,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        LOCALIZATION.localize(
+                                                              'main_word.cancel',
+                                                            ) ??
+                                                            "Cancel",
+                                                        style: TextStyle(
+                                                          color: theme
+                                                              .colorScheme
+                                                              .onSurface
+                                                              .withOpacity(0.7),
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 12),
+
+                                                    // Save Button
+                                                    ElevatedButtonWithSound(
+                                                      onPressed: () async {
+                                                        final newKioskName =
+                                                            kioskNameController
+                                                                .text
+                                                                .trim();
+                                                        final newLocation =
+                                                            locationController
+                                                                .text
+                                                                .trim();
+                                                        final currentPassword =
+                                                            currentPasswordController
+                                                                .text
+                                                                .trim();
+                                                        final newPassword =
+                                                            newPasswordController
+                                                                .text
+                                                                .trim();
+                                                        final confirmPassword =
+                                                            confirmPasswordController
+                                                                .text
+                                                                .trim();
+
+                                                        if (newKioskName
+                                                                .isEmpty ||
+                                                            newLocation
+                                                                .isEmpty) {
+                                                          showToastMessage(
+                                                            context,
+                                                            LOCALIZATION.localize(
+                                                                  'more_page.fill_all_fields',
+                                                                ) ??
+                                                                "Please fill all fields",
+                                                            ToastLevel.warning,
+                                                          );
+                                                          return;
+                                                        }
+
+                                                        // Check if user wants to change password
+                                                        bool changePassword =
+                                                            currentPassword
+                                                                .isNotEmpty ||
+                                                            newPassword
+                                                                .isNotEmpty ||
+                                                            confirmPassword
+                                                                .isNotEmpty;
+
+                                                        if (changePassword) {
+                                                          // Validate password fields
+                                                          if (currentPassword
+                                                                  .isEmpty ||
+                                                              newPassword
+                                                                  .isEmpty ||
+                                                              confirmPassword
+                                                                  .isEmpty) {
+                                                            showToastMessage(
+                                                              context,
+                                                              LOCALIZATION.localize(
+                                                                    'more_page.fill_all_password_fields',
+                                                                  ) ??
+                                                                  "Please fill all password fields",
+                                                              ToastLevel
+                                                                  .warning,
+                                                            );
+                                                            return;
+                                                          }
+
+                                                          if (newPassword !=
+                                                              confirmPassword) {
+                                                            showToastMessage(
+                                                              context,
+                                                              LOCALIZATION.localize(
+                                                                    'auth_page.password_mismatch',
+                                                                  ) ??
+                                                                  "New passwords do not match",
+                                                              ToastLevel.error,
+                                                            );
+                                                            return;
+                                                          }
+
+                                                          if (newPassword
+                                                                  .length <
+                                                              6) {
+                                                            showToastMessage(
+                                                              context,
+                                                              LOCALIZATION.localize(
+                                                                    'auth_page.password_too_short',
+                                                                  ) ??
+                                                                  "Password must be at least 6 characters",
+                                                              ToastLevel.error,
+                                                            );
+                                                            return;
+                                                          }
+
+                                                          // Verify current password
+                                                          bool
+                                                          currentPasswordValid =
+                                                              await decryptPassword(
+                                                                globalAppConfig["kiosk_info"]["kiosk_password"],
+                                                                targetPassword:
+                                                                    currentPassword,
+                                                              );
+
+                                                          if (!currentPasswordValid) {
+                                                            showToastMessage(
+                                                              context,
+                                                              LOCALIZATION.localize(
+                                                                    'auth_page.current_password_incorrect',
+                                                                  ) ??
+                                                                  "Current password is incorrect",
+                                                              ToastLevel.error,
+                                                            );
+                                                            return;
+                                                          }
+
+                                                          // Ask for admin authentication before changing password
+                                                          final adminController =
+                                                              TextEditingController();
+                                                          bool?
+                                                          adminConfirmed = await showDialog<
+                                                            bool
+                                                          >(
+                                                            context: context,
+                                                            barrierDismissible:
+                                                                false,
+                                                            builder:
+                                                                (
+                                                                  context,
+                                                                ) => AlertDialog(
+                                                                  shape: RoundedRectangleBorder(
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          20,
+                                                                        ),
+                                                                  ),
+                                                                  title: Row(
+                                                                    children: [
+                                                                      Icon(
+                                                                        Icons
+                                                                            .admin_panel_settings,
+                                                                        color:
+                                                                            Colors.red,
+                                                                      ),
+                                                                      const SizedBox(
+                                                                        width:
+                                                                            12,
+                                                                      ),
+                                                                      Text(
+                                                                        LOCALIZATION.localize(
+                                                                              'more_page.admin_authentication',
+                                                                            ) ??
+                                                                            "Admin Authentication",
+                                                                        style: TextStyle(
+                                                                          color:
+                                                                              Colors.red,
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                  content: Column(
+                                                                    mainAxisSize:
+                                                                        MainAxisSize
+                                                                            .min,
+                                                                    children: [
+                                                                      Text(
+                                                                        LOCALIZATION.localize(
+                                                                              'more_page.admin_password_required',
+                                                                            ) ??
+                                                                            "Admin password is required to change kiosk password.",
+                                                                        style:
+                                                                            theme.textTheme.bodyMedium,
+                                                                      ),
+                                                                      const SizedBox(
+                                                                        height:
+                                                                            16,
+                                                                      ),
+
+                                                                      TextField(
+                                                                        controller:
+                                                                            adminController,
+                                                                        obscureText:
+                                                                            true,
+                                                                        decoration: InputDecoration(
+                                                                          labelText:
+                                                                              LOCALIZATION.localize(
+                                                                                'auth_page.admin_password',
+                                                                              ) ??
+                                                                              "Admin Password",
+                                                                          border: OutlineInputBorder(
+                                                                            borderRadius: BorderRadius.circular(
+                                                                              8.0,
+                                                                            ),
+                                                                          ),
+                                                                          prefixIcon: const Icon(
+                                                                            Icons.admin_panel_settings,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                  actions: [
+                                                                    TextButton(
+                                                                      onPressed: () {
+                                                                        adminController
+                                                                            .dispose();
+                                                                        Navigator.of(
+                                                                          context,
+                                                                        ).pop(
+                                                                          false,
+                                                                        );
+                                                                      },
+                                                                      child: Text(
+                                                                        LOCALIZATION.localize(
+                                                                              'main_word.cancel',
+                                                                            ) ??
+                                                                            "Cancel",
+                                                                      ),
+                                                                    ),
+
+                                                                    ElevatedButtonWithSound(
+                                                                      onPressed: () async {
+                                                                        final adminPassword =
+                                                                            adminController.text.trim();
+                                                                        if (adminPassword
+                                                                            .isEmpty) {
+                                                                          showToastMessage(
+                                                                            context,
+                                                                            LOCALIZATION.localize(
+                                                                                  'more_page.enter_admin_password',
+                                                                                ) ??
+                                                                                "Please enter admin password",
+                                                                            ToastLevel.warning,
+                                                                          );
+                                                                          return;
+                                                                        }
+
+                                                                        // Verify admin password using EMPQUERY
+                                                                        bool
+                                                                        adminValid =
+                                                                            false;
+                                                                        try {
+                                                                          final adminUser =
+                                                                              EMPQUERY.employees["0"]; // Assuming admin is ID 0
+                                                                          if (adminUser !=
+                                                                                  null &&
+                                                                              adminUser["username"] ==
+                                                                                  "ADMIN") {
+                                                                            adminValid = await decryptPassword(
+                                                                              adminUser["password"],
+                                                                              targetPassword:
+                                                                                  adminPassword,
+                                                                            );
+                                                                          }
+                                                                        } catch (
+                                                                          e
+                                                                        ) {
+                                                                          adminValid =
+                                                                              false;
+                                                                        }
+
+                                                                        if (adminValid) {
+                                                                          adminController
+                                                                              .dispose();
+                                                                          Navigator.of(
+                                                                            context,
+                                                                          ).pop(
+                                                                            true,
+                                                                          );
+                                                                        } else {
+                                                                          showToastMessage(
+                                                                            context,
+                                                                            LOCALIZATION.localize(
+                                                                                  'auth_page.admin_password_incorrect',
+                                                                                ) ??
+                                                                                "Invalid admin password",
+                                                                            ToastLevel.error,
+                                                                          );
+                                                                        }
+                                                                      },
+                                                                      style: ElevatedButton.styleFrom(
+                                                                        backgroundColor:
+                                                                            Colors.red,
+                                                                        foregroundColor:
+                                                                            Colors.white,
+                                                                      ),
+                                                                      child: Text(
+                                                                        LOCALIZATION.localize(
+                                                                              'main_word.verify',
+                                                                            ) ??
+                                                                            "Verify",
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                          );
+
+                                                          if (adminConfirmed !=
+                                                              true) {
+                                                            return; // Admin authentication failed or cancelled
+                                                          }
+
+                                                          // Encrypt and update new password
+                                                          globalAppConfig['kiosk_info']['kiosk_password'] =
+                                                              await encryptPassword(
+                                                                newPassword,
+                                                              );
+                                                        }
+
+                                                        // Update other kiosk info
+                                                        globalAppConfig['kiosk_info']['kiosk_name'] =
+                                                            newKioskName;
+                                                        globalAppConfig['kiosk_info']['location'] =
+                                                            newLocation;
+
+                                                        // Save to file
+                                                        final success =
+                                                            await ConfigService.updateConfig();
+
+                                                        if (success) {
+                                                          showToastMessage(
+                                                            context,
+                                                            changePassword
+                                                                ? (LOCALIZATION
+                                                                        .localize(
+                                                                          'more_page.kiosk_info_and_password_updated',
+                                                                        ) ??
+                                                                    "Kiosk information and password updated successfully")
+                                                                : (LOCALIZATION
+                                                                        .localize(
+                                                                          'more_page.kiosk_info_updated',
+                                                                        ) ??
+                                                                    "Kiosk information updated successfully"),
+                                                            ToastLevel.success,
+                                                          );
+
+                                                          // Refresh the page
+                                                          setState(() {});
+
+                                                          // Dispose controllers
+                                                          kioskNameController
+                                                              .dispose();
+                                                          locationController
+                                                              .dispose();
+                                                          currentPasswordController
+                                                              .dispose();
+                                                          newPasswordController
+                                                              .dispose();
+                                                          confirmPasswordController
+                                                              .dispose();
+
+                                                          Navigator.of(
+                                                            context,
+                                                          ).pop();
+                                                        } else {
+                                                          showToastMessage(
+                                                            context,
+                                                            LOCALIZATION.localize(
+                                                                  'more_page.update_failed',
+                                                                ) ??
+                                                                "Failed to update kiosk information",
+                                                            ToastLevel.error,
+                                                          );
+                                                        }
+                                                      },
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            mainColor,
+                                                        foregroundColor:
+                                                            Colors.white,
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 24,
+                                                              vertical: 12,
+                                                            ),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                10,
+                                                              ),
+                                                        ),
+                                                        elevation: 3,
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          const Icon(
+                                                            Icons.save,
+                                                            size: 18,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          Text(
+                                                            LOCALIZATION.localize(
+                                                                  'main_word.save',
+                                                                ) ??
+                                                                "Save",
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ],
@@ -1645,6 +2672,8 @@ class _MorePageState extends State<MorePage> {
                                   },
                                 ),
                                 const SizedBox(width: 12),
+
+                                // Sync Now Button
                                 ElevatedButtonWithSound.icon(
                                   icon: const Icon(Icons.sync),
                                   label: Text(

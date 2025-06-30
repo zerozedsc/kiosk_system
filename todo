@@ -1,0 +1,21 @@
+# TODO List for Kiosk System
+
+## 1. Admin Authentication Refactor
+
+- [ ] Review all usages of admin authentication in the codebase.
+- [X] Replace old admin authentication logic with the new `adminAuth` function from `db.dart`.
+- [X] Ensure all admin authentication flows use the updated method.
+- [ ] Test admin login and protected actions to confirm correct behavior.
+- [ ] Remove any deprecated or unused admin authentication code.
+
+> Reference: See `adminAuth` in `lib/services/database/db.dart`
+
+## 2. Live Sales Summary Advanced Features
+
+- [X] Add a button to open a new dialog for advanced Live Sales Summary features (for better sizing and window management).
+- [X] Implement "Sales by Product/Category" view (check how data is saved for grouping) **[High Priority]**.
+- [X] Add basic time-based filtering (e.g., "Today," "This Hour," custom range) to the live summary **[High Priority]**.
+- [X] Include a payment method summary in the advanced dialog **[Mid Priority]**.
+- [ ] Implement export of filtered sales report to TXT/PDF/Excel (after above priorities are done).
+
+> Reference: See analytics logic in `lib/services/analytics/analytics.dart` and dialog UI in homepage components.
