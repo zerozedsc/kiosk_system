@@ -1,9 +1,8 @@
-import 'package:intl/intl.dart';
-
 import '../../configs/configs.dart';
-
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
+import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../database/db.dart';
 import '../database/model_sqlite.dart';
@@ -286,6 +285,48 @@ class KioskAnalyticsService {
     return rows.where((row) => (row['total_stocks'] ?? 0) < threshold).toList();
   }
 
+  // --- Helper: Get Product Sales Total for Date Range ---
+  Future<Map<String, double>> getProductSalesTotalForRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final List<Map<String, dynamic>> rows = await dbQuery.fetchAllData(
+      'kiosk_transaction',
+    );
+
+    // Build name->price maps for both tables
+    final List<Map<String, dynamic>> kioskProducts = await dbQuery.fetchAllData(
+      'kiosk_product',
+    );
+    final List<Map<String, dynamic>> setProducts = await dbQuery.fetchAllData(
+      'set_product',
+    );
+    final Map<String, num> nameToPrice = {
+      for (final row in kioskProducts) row['name']: row['price'],
+      for (final row in setProducts) row['name']: row['price'],
+    };
+
+    final Map<String, double> productTotal = {};
+    for (final row in rows) {
+      final ts = row['timestamp'];
+      final dt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+      if (!dt.isBefore(start) && !dt.isAfter(end)) {
+        final receiptList = row['receipt_list'];
+        if (receiptList is String) {
+          final List<dynamic> items = parseJsonList(receiptList);
+          for (final item in items) {
+            final name = item['name'] ?? '';
+            final qty = (item['quantity'] ?? 0) as num;
+            // Use price from DB, fallback to item['price'] if not found
+            final price = nameToPrice[name] ?? (item['price'] ?? 0.0) as num;
+            productTotal[name] = (productTotal[name] ?? 0.0) + (qty * price);
+          }
+        }
+      }
+    }
+    return productTotal;
+  }
+
   // --- Combined TXT Report ---
   Future<File> generateCombinedReportTxt({
     required DateTime start,
@@ -301,6 +342,10 @@ class KioskAnalyticsService {
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
 
     buffer.writeln("===============================================");
+    Map<String, double> productSalesTotal = await getProductSalesTotalForRange(
+      start,
+      end,
+    );
     buffer.writeln("   COMBINED SALES & INVENTORY REPORT");
     buffer.writeln("===============================================");
     buffer.writeln(
@@ -315,28 +360,18 @@ class KioskAnalyticsService {
     buffer.writeln("Generated on: ${dateFormat.format(DateTime.now())}");
     buffer.writeln();
 
-    // Low Stock Section
-    buffer.writeln("---------- Low Stock Warning (< 5) ----------");
-    if (lowStockProducts.isEmpty) {
-      buffer.writeln("All products have sufficient stock.");
-    } else {
-      buffer.writeln("Product Name                 | Remaining Stock");
-      buffer.writeln("---------------------------------------------");
-      for (final row in lowStockProducts) {
-        buffer.writeln(
-          "- ${row['name'].toString().padRight(28)} | ${row['total_stocks'].toString().padLeft(15)}",
-        );
-      }
-    }
-    buffer.writeln();
-
     buffer.writeln("---------- Sales by Product ----------");
     if (productSales.isEmpty) {
       buffer.writeln("No product sales in this period.");
     } else {
-      productSales.forEach(
-        (k, v) => buffer.writeln("- ${k.padRight(30)}: $v sold"),
-      );
+      buffer.writeln("Product Name                 | Qty Sold | Total Price");
+      buffer.writeln("-----------------------------------------------");
+      productSales.forEach((k, v) {
+        final total = productSalesTotal[k] ?? 0.0;
+        buffer.writeln(
+          "- ${k.padRight(28)} | ${v.toString().padLeft(8)} | ${total.toStringAsFixed(2).padLeft(11)}",
+        );
+      });
     }
     buffer.writeln();
     buffer.writeln("---------- Sales by Category ----------");
@@ -377,6 +412,21 @@ class KioskAnalyticsService {
       });
     }
     buffer.writeln();
+
+    // Low Stock Warning at the bottom
+    buffer.writeln("---------- Low Stock Warning (< 5) ----------");
+    if (lowStockProducts.isEmpty) {
+      buffer.writeln("All products have sufficient stock.");
+    } else {
+      buffer.writeln("Product Name                 | Remaining Stock");
+      buffer.writeln("---------------------------------------------");
+      for (final row in lowStockProducts) {
+        buffer.writeln(
+          "- ${row['name'].toString().padRight(28)} | ${row['total_stocks'].toString().padLeft(15)}",
+        );
+      }
+    }
+    buffer.writeln();
     buffer.writeln("--- End of Report ---");
 
     final dir = await getTemporaryDirectory();
@@ -393,6 +443,7 @@ class KioskAnalyticsService {
     required DateTime start,
     required DateTime end,
     required Map<String, int> productSales,
+
     required Map<String, int> categorySales,
     required Map<String, Map<String, dynamic>> paymentSummary,
     required Map<String, Map<String, dynamic>> inventoryChange,
@@ -410,6 +461,11 @@ class KioskAnalyticsService {
 
     final kioskId = globalAppConfig['kiosk_info']['kiosk_id'] ?? 'N/A';
     final kioskName = globalAppConfig['kiosk_info']['kiosk_name'] ?? 'N/A';
+
+    Map<String, double> productSalesTotal = await getProductSalesTotalForRange(
+      start,
+      end,
+    );
 
     pdf.addPage(
       pw.MultiPage(
@@ -459,7 +515,122 @@ class KioskAnalyticsService {
               ),
               pw.Divider(height: 30),
 
-              // Low Stock Section
+              // Sales by Product (with total price)
+              pw.Text(
+                'Sales by Product',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Table.fromTextArray(
+                headers: ['Product', 'Quantity Sold', 'Total Price'],
+                headerStyle: headerStyle,
+                cellStyle: bodyStyle,
+                cellAlignments: {
+                  0: pw.Alignment.centerLeft,
+                  1: pw.Alignment.center,
+                  2: pw.Alignment.centerRight,
+                },
+                data:
+                    productSales.entries
+                        .map(
+                          (e) => [
+                            e.key,
+                            e.value.toString(),
+                            (productSalesTotal[e.key] ?? 0.0).toStringAsFixed(
+                              2,
+                            ),
+                          ],
+                        )
+                        .toList(),
+              ),
+              pw.SizedBox(height: 20),
+
+              pw.Text(
+                'Sales by Category',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Table.fromTextArray(
+                headers: ['Category', 'Items Sold'],
+                headerStyle: headerStyle,
+                cellStyle: bodyStyle,
+                cellAlignments: {
+                  0: pw.Alignment.centerLeft,
+                  1: pw.Alignment.center,
+                },
+                data:
+                    categorySales.entries
+                        .map((e) => [e.key, e.value.toString()])
+                        .toList(),
+              ),
+              pw.SizedBox(height: 20),
+
+              pw.Text(
+                'Payment Methods Summary',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Table.fromTextArray(
+                headers: ['Method', 'Transactions', 'Total Amount'],
+                headerStyle: headerStyle,
+                cellStyle: bodyStyle,
+                cellAlignments: {
+                  0: pw.Alignment.centerLeft,
+                  1: pw.Alignment.center,
+                  2: pw.Alignment.centerRight,
+                },
+                data:
+                    paymentSummary.entries
+                        .map(
+                          (e) => [
+                            e.key,
+                            e.value['count'].toString(),
+                            (e.value['total'] as double).toStringAsFixed(2),
+                          ],
+                        )
+                        .toList(),
+              ),
+              pw.SizedBox(height: 20),
+
+              pw.Text(
+                'Inventory Changes',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Table.fromTextArray(
+                headers: ['Product Name', 'Used Stock', 'Used Piece'],
+                headerStyle: headerStyle,
+                cellStyle: bodyStyle,
+                cellAlignments: {
+                  0: pw.Alignment.centerLeft,
+                  1: pw.Alignment.center,
+                  2: pw.Alignment.center,
+                },
+                data:
+                    inventoryChange.entries.map((e) {
+                      final name = idNameMap[e.key] ?? 'Product ${e.key}';
+                      return [
+                        name,
+                        e.value['total_stocks'].toString(),
+                        e.value['total_pieces_used'].toString(),
+                      ];
+                    }).toList(),
+              ),
+              pw.SizedBox(height: 20),
+
+              // Low Stock Warning at the bottom
               pw.Text(
                 'Low Stock Warning (< 5)',
                 style: pw.TextStyle(
@@ -490,128 +661,6 @@ class KioskAnalyticsService {
                           )
                           .toList(),
                 ),
-              pw.SizedBox(height: 20),
-
-              // ...rest of your report as before...
-              pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(
-                          'Sales by Product',
-                          style: pw.TextStyle(
-                            fontSize: 16,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                        pw.SizedBox(height: 8),
-                        pw.Table.fromTextArray(
-                          headers: ['Product', 'Quantity Sold'],
-                          headerStyle: headerStyle,
-                          cellStyle: bodyStyle,
-                          cellAlignments: {
-                            0: pw.Alignment.centerLeft,
-                            1: pw.Alignment.center,
-                          },
-                          data:
-                              productSales.entries
-                                  .map((e) => [e.key, e.value.toString()])
-                                  .toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  pw.SizedBox(width: 20),
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(
-                          'Sales by Category',
-                          style: pw.TextStyle(
-                            fontSize: 16,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                        pw.SizedBox(height: 8),
-                        pw.Table.fromTextArray(
-                          headers: ['Category', 'Items Sold'],
-                          headerStyle: headerStyle,
-                          cellStyle: bodyStyle,
-                          cellAlignments: {
-                            0: pw.Alignment.centerLeft,
-                            1: pw.Alignment.center,
-                          },
-                          data:
-                              categorySales.entries
-                                  .map((e) => [e.key, e.value.toString()])
-                                  .toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 25),
-              pw.Text(
-                'Payment Methods Summary',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              pw.Table.fromTextArray(
-                headers: ['Method', 'Transactions', 'Total Amount'],
-                headerStyle: headerStyle,
-                cellStyle: bodyStyle,
-                cellAlignments: {
-                  0: pw.Alignment.centerLeft,
-                  1: pw.Alignment.center,
-                  2: pw.Alignment.centerRight,
-                },
-                data:
-                    paymentSummary.entries
-                        .map(
-                          (e) => [
-                            e.key,
-                            e.value['count'].toString(),
-                            (e.value['total'] as double).toStringAsFixed(2),
-                          ],
-                        )
-                        .toList(),
-              ),
-              pw.SizedBox(height: 25),
-              pw.Text(
-                'Inventory Changes',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              pw.Table.fromTextArray(
-                headers: ['Product Name', 'Used Stock', 'Used Piece'],
-                headerStyle: headerStyle,
-                cellStyle: bodyStyle,
-                cellAlignments: {
-                  0: pw.Alignment.centerLeft,
-                  1: pw.Alignment.center,
-                  2: pw.Alignment.center,
-                },
-                data:
-                    inventoryChange.entries.map((e) {
-                      final name = idNameMap[e.key] ?? 'Product ${e.key}';
-                      return [
-                        name,
-                        e.value['total_stocks'].toString(),
-                        e.value['total_pieces_used'].toString(),
-                      ];
-                    }).toList(),
-              ),
             ],
       ),
     );
@@ -657,4 +706,161 @@ class ProductSalesSummary {
   final String productName;
   final int quantitySold;
   ProductSalesSummary({required this.productName, required this.quantitySold});
+}
+
+/// [02072025] Service for generating and sharing attendance reports.
+class AttendanceReportingService {
+  /// Generates a PDF document from attendance data and initiates sharing.
+  Future<void> exportToPdf({
+    required BuildContext context,
+    required List<Map<String, dynamic>> attendanceRows,
+    required String employeeName,
+    required String employeeId,
+    required int year,
+    required int month,
+    required double totalHours,
+  }) async {
+    try {
+      final pdfBytes = await _generateAttendancePdf(
+        attendanceRows: attendanceRows,
+        employeeName: employeeName,
+        year: year,
+        month: month,
+        totalHours: totalHours,
+      );
+
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'attendance_${employeeId}_${year}_$month.pdf';
+      final file = await File('${tempDir.path}/$fileName').create();
+      await file.writeAsBytes(pdfBytes);
+
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'Attendance Report for $employeeName ($year-$month)');
+    } catch (e) {
+      // Handle potential errors, e.g., show a toast message
+      print('Failed to export PDF: $e');
+    }
+  }
+
+  /// Generates a CSV file from attendance data and initiates sharing.
+  Future<void> exportToCsv({
+    required BuildContext context,
+    required List<Map<String, dynamic>> attendanceRows,
+    required String employeeName,
+    required String employeeId,
+    required int year,
+    required int month,
+    required double totalHours,
+  }) async {
+    try {
+      final csvData = await _generateAttendanceCsv(
+        attendanceRows: attendanceRows,
+        totalHours: totalHours,
+      );
+
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'attendance_${employeeId}_${year}_$month.csv';
+      final file = await File('${tempDir.path}/$fileName').create();
+      await file.writeAsString(csvData);
+
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'Attendance Report for $employeeName ($year-$month)');
+    } catch (e) {
+      // Handle potential errors
+      print('Failed to export CSV: $e');
+    }
+  }
+
+  /// Creates a CSV string from attendance data.
+  Future<String> _generateAttendanceCsv({
+    required List<Map<String, dynamic>> attendanceRows,
+    required double totalHours,
+  }) async {
+    final buffer = StringBuffer();
+    // Add headers
+    buffer.writeln('Date,Clock In,Clock Out,Total Hours');
+    // Add data rows
+    for (final row in attendanceRows) {
+      final date = row['date'] ?? '';
+      final clockIn = row['clock_in'] ?? '';
+      final clockOut = row['clock_out'] ?? '';
+      final hours =
+          double.tryParse(
+            row['total_hour']?.toString() ?? '0',
+          )?.toStringAsFixed(2) ??
+          '0.00';
+      buffer.writeln('$date,$clockIn,$clockOut,$hours');
+    }
+    // Add summary
+    buffer.writeln('');
+    buffer.writeln(',,,Total Hours: ${totalHours.toStringAsFixed(2)}');
+    return buffer.toString();
+  }
+
+  /// Creates a PDF document as a Uint8List from attendance data.
+  Future<Uint8List> _generateAttendancePdf({
+    required List<Map<String, dynamic>> attendanceRows,
+    required String employeeName,
+    required int year,
+    required int month,
+    required double totalHours,
+  }) async {
+    final pdf = pw.Document();
+    final monthName = DateFormat.MMMM().format(DateTime(0, month));
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build:
+            (context) => [
+              pw.Header(
+                level: 0,
+                child: pw.Text(
+                  'Attendance Report - $employeeName',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.Paragraph(text: 'Report for: $monthName $year'),
+              pw.SizedBox(height: 20),
+              pw.Table.fromTextArray(
+                headers: ['Date', 'Clock In', 'Clock Out', 'Total Hours'],
+                data:
+                    attendanceRows.map((row) {
+                      final date = row['date']?.toString() ?? '';
+                      final clockIn = row['clock_in']?.toString() ?? '--:--';
+                      final clockOut = row['clock_out']?.toString() ?? '--:--';
+                      final hours =
+                          double.tryParse(
+                            row['total_hour']?.toString() ?? '0',
+                          )?.toStringAsFixed(2) ??
+                          '0.00';
+                      return [date, clockIn, clockOut, '$hours h'];
+                    }).toList(),
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(),
+                cellAlignment: pw.Alignment.center,
+                cellAlignments: {0: pw.Alignment.centerLeft},
+              ),
+              pw.Divider(height: 20),
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text(
+                  'Total Working Hours: ${totalHours.toStringAsFixed(2)} h',
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+      ),
+    );
+
+    return pdf.save();
+  }
 }

@@ -8,6 +8,7 @@ import 'services/database/db.dart';
 import 'services/inventory/inventory_services.dart';
 import 'services/connection/bluetooth.dart';
 import 'services/connection/usb.dart';
+import 'services/auth/auth_service.dart';
 
 import 'components/toastmsg.dart';
 

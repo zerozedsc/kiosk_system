@@ -149,7 +149,11 @@
         "custom_range": "Julat Tarikh",
         "transactions": "Transaksi",
         "no_data": "Tiada Data",
-        "no_payment_data": "Tiada Data Pembayaran"
+        "no_payment_data": "Tiada Data Pembayaran",
+        "admin_auth_required": "Pengesahan Admin Diperlukan",
+        "unlock_inventory": "Buka Inventori",
+        "attendance": "Kehadiran",
+        "total_hours": "Jumlah Jam"
     },
     "home_page": {
         "title": "Laman Utama",

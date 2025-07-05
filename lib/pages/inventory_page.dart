@@ -1,6 +1,6 @@
 import '../configs/configs.dart';
 import '../services/inventory/inventory_services.dart';
-import '../services/database/db.dart';
+import '../services/auth/auth_service.dart';
 
 import '../components/buttonswithsound.dart';
 import '../components/toastmsg.dart';

@@ -1,6 +1,7 @@
 // main import
 import '../configs/configs.dart';
-import '../services/database/db.dart';
+
+import '../services/auth/auth_service.dart';
 import '../services/page_controller.dart';
 
 // components
@@ -208,10 +209,8 @@ class _SignupPageState extends State<SignupPage> {
                               "location": locationController.text.trim(),
                             };
 
-                            final checkSignUp = await AuthService.signup(
-                              context,
-                              data,
-                            );
+                            final checkSignUp =
+                                await AppFirstAuthService.signup(context, data);
 
                             if (checkSignUp) {
                               showToastMessage(
@@ -461,10 +460,13 @@ class _LoginPageState extends State<LoginPage> {
                             return;
                           }
 
-                          final checkLogin = await AuthService.login(context, {
-                            "kiosk_id": kioskId,
-                            "kiosk_password": kioskPassword,
-                          });
+                          final checkLogin = await AppFirstAuthService.login(
+                            context,
+                            {
+                              "kiosk_id": kioskId,
+                              "kiosk_password": kioskPassword,
+                            },
+                          );
 
                           if (checkLogin["success"]) {
                             showToastMessage(
@@ -559,75 +561,5 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
-  }
-}
-
-class AuthService {
-  static Future<Map<String, dynamic>> login(
-    BuildContext context,
-    Map<String, dynamic> data,
-  ) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: Center(child: CircularProgressIndicator()),
-        );
-      },
-    );
-
-    bool kioskId =
-        data["kiosk_id"] == globalAppConfig["kiosk_info"]?["kiosk_id"];
-    bool kioskPassword = await decryptPassword(
-      globalAppConfig["kiosk_info"]?["kiosk_password"],
-      targetPassword: data["kiosk_password"],
-    );
-
-    // Always close the loading dialog before returning
-    Navigator.of(context).pop();
-
-    // TODO: uncomment the following lines to enable login validation
-    // if (!kioskId) {
-    //   return {"success": false, "message": "login_id_failed"};
-    // } else if (!kioskPassword) {
-    //   return {"success": false, "message": "login_password_failed"};
-    // }
-
-    return {"success": true, "message": "login_success"};
-  }
-
-  static Future<bool> signup(
-    BuildContext context,
-    Map<String, dynamic> data,
-  ) async {
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: Center(child: CircularProgressIndicator()),
-        );
-      },
-    );
-
-    globalAppConfig["kiosk_info"]?["kiosk_id"] = data["kiosk_id"];
-    globalAppConfig["kiosk_info"]?["kiosk_name"] = data["kiosk_name"];
-    globalAppConfig["kiosk_info"]?["location"] = data["location"];
-    globalAppConfig["kiosk_info"]?["kiosk_password"] = await encryptPassword(
-      data["kiosk_password"],
-    );
-    globalAppConfig["kiosk_info"]?["registered"] = true;
-    final checkUpdateConfig = await ConfigService.updateConfig();
-
-    // Close loading dialog
-    Navigator.of(context).pop();
-
-    return checkUpdateConfig;
   }
 }

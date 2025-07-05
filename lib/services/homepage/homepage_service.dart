@@ -29,7 +29,7 @@ class HomepageService {
 
   HomepageService._internal();
 
-  /// Initializes and preloads all employee data into memory as a Map.
+  // Initializes and preloads all employee data into memory as a Map.
   /// Call this during app startup.
   Future<HomepageService> initialize() async {
     try {
@@ -52,6 +52,7 @@ class HomepageService {
     return this;
   }
 
+  // [300625] [EMPLOYEE ATTENDANCE]
   /// update employeeMap with new data
   Future<void> updateEmployeeMap() async {
     try {
@@ -68,14 +69,12 @@ class HomepageService {
     }
   }
 
-  /// Retrieves and Saving employee attendance data
+  /// [Retrieves and Saving employee attendance data]
   Future<dynamic> attendanceSetGetter({
     Map<String, dynamic>? attendanceData,
   }) async {
     try {
-      // Check if a record exists for this employee_id and date
       final dbQuery = DatabaseQuery(db: DB, LOGS: HOMEPAGE_LOGS);
-      List<Map<String, dynamic>> existing = [];
       final dateNow = getDateTimeNow();
 
       // Prepare allAttendanceData as a Map with id as key (for get, not for update/insert)
@@ -114,43 +113,41 @@ class HomepageService {
         return allAttendanceData;
       }
 
-      // If attendanceData is provided, update or insert into employee_attendance
       final String employeeId = attendanceData['id'].toString();
       final String date = attendanceData['date'].toString();
-      existing = await dbQuery.fetchDataWhere(
+
+      // Always check for BOTH employee_id AND date!
+      final existing = await dbQuery.fetchDataWhere(
         'employee_attendance',
         'employee_id = ? AND date = ?',
         [employeeId, date],
       );
 
       if (existing.isNotEmpty) {
+        // Update only if the record for this employee and date exists
         final existingRecord = existing.first;
         final prevClockIn = existingRecord['clock_in'] ?? "";
+        String newClockIn = attendanceData['clock_in'] ?? "";
+        String newClockOut = attendanceData['clock_out'] ?? "";
 
-        // If clock_in is already set, do not update clock_in again
-        if (prevClockIn != "" &&
-            attendanceData['clock_in'] != "" &&
-            prevClockIn != attendanceData['clock_in']) {
-          HOMEPAGE_LOGS.info(
-            'Clock-in already exists for employee_id: $employeeId, date: $date. Not updating clock_in.',
-          );
-          return "clock_in_already_exists";
+        // Only update clock_in if it was empty before
+        String clockInToSave = prevClockIn;
+        if (prevClockIn == "" && newClockIn != "") {
+          clockInToSave = newClockIn;
         }
 
-        // If updating clock_out and clock_in exists, calculate total_hour
+        // Calculate total_hour if both clock_in and clock_out exist
         double totalHour =
-            (existingRecord['total_hour'] is num)
+            existingRecord['total_hour'] is num
                 ? (existingRecord['total_hour'] as num).toDouble()
                 : double.tryParse(
                       existingRecord['total_hour']?.toString() ?? '',
                     ) ??
                     0.0;
-        String newClockOut = attendanceData['clock_out'] ?? "";
 
-        if (prevClockIn != "" && newClockOut != "") {
-          // Calculate total_hour (assume format 'HH:mm')
+        if (clockInToSave != "" && newClockOut != "") {
           try {
-            final inParts = prevClockIn.split(':');
+            final inParts = clockInToSave.split(':');
             final outParts = newClockOut.split(':');
             if (inParts.length == 2 && outParts.length == 2) {
               final inTime = DateTime(
@@ -176,35 +173,25 @@ class HomepageService {
           }
         }
 
-        HOMEPAGE_LOGS.debug(
-          'Updating attendance: ${HOMEPAGE_LOGS.map2str(existingRecord)}',
-        );
-
         await dbQuery.updateData('employee_attendance', existingRecord['id'], {
-          // Only update clock_in if it was empty before
-          if (prevClockIn == "" && attendanceData['clock_in'] != "")
-            'clock_in': attendanceData['clock_in'],
-          // Only update clock_out if provided
-          if (attendanceData['clock_out'] != "")
-            'clock_out': attendanceData['clock_out'],
-          // Always update total_hour if clock_out is set
-          if (prevClockIn != "" && attendanceData['clock_out'] != "")
+          'clock_in': clockInToSave,
+          if (newClockOut != "") 'clock_out': newClockOut,
+          if (clockInToSave != "" && newClockOut != "")
             'total_hour': double.parse(totalHour.toStringAsFixed(3)),
         });
 
         HOMEPAGE_LOGS.info(
           'Attendance updated for employee_id: $employeeId, date: $date',
         );
-
         return "attendance_updated";
       } else {
-        // Insert new record
+        // No record for this date, so insert new
         await dbQuery.insertNewData('employee_attendance', {
           'employee_id': employeeId,
           'date': date,
-          'clock_in': attendanceData['clock_in'],
-          'clock_out': attendanceData['clock_out'],
-          'total_hour': attendanceData['total_hour'],
+          'clock_in': attendanceData['clock_in'] ?? "",
+          'clock_out': attendanceData['clock_out'] ?? "",
+          'total_hour': attendanceData['total_hour'] ?? 0.0,
         });
         HOMEPAGE_LOGS.info(
           'Attendance inserted for employee_id: $employeeId, date: $date',
@@ -221,7 +208,7 @@ class HomepageService {
     }
   }
 
-  /// Update live sales summary (orders, profit, best selling item)
+  // [Update live sales summary (orders, profit, best selling item)]
   Future<void> updateLiveSalesSummary() async {
     final dbQuery = DatabaseQuery(db: DB, LOGS: HOMEPAGE_LOGS);
     final analytics = KioskAnalyticsService(dbQuery: dbQuery);
@@ -264,7 +251,7 @@ class HomepageService {
     };
   }
 
-  /// Fetch and cache advanced sales summary (by product and by category) for today
+  // [Fetch and cache advanced sales summary (by product and by category) for today]
   Future<void> updateAdvancedSalesSummary() async {
     final dbQuery = DatabaseQuery(db: DB, LOGS: HOMEPAGE_LOGS);
     final analytics = KioskAnalyticsService(dbQuery: dbQuery);
@@ -293,7 +280,7 @@ class HomepageService {
     categorySales = categorySalesToday;
   }
 
-  /// Fetch and cache advanced sales summary (by product and by category) for a given range
+  // [Fetch and cache advanced sales summary (by product and by category) for a given range]
   Future<void> updateAdvancedSalesSummaryWithRange({
     required DateTime start,
     required DateTime end,
@@ -338,7 +325,7 @@ class HomepageService {
     categorySales = categorySalesRange;
   }
 
-  /// [300625] Payment method summary for a given range
+  // [300625] [Payment method summary for a given range]
   Future<void> updatePaymentMethodSummaryWithRange({
     required DateTime start,
     required DateTime end,
@@ -366,7 +353,7 @@ class HomepageService {
     paymentMethodSummary = summary;
   }
 
-  /// [300625] Export combined report for a given range in specified format
+  // [300625] [Export combined report for a given range in specified format]
   Future<File> exportCombinedReport({
     required DateTime start,
     required DateTime end,

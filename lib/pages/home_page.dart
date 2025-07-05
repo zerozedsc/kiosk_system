@@ -4,8 +4,8 @@ import 'package:intl/intl.dart'; // <-- Add this line
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
 
-import '../services/database/db.dart';
 import '../services/homepage/homepage_service.dart';
+import '../services/auth/auth_service.dart';
 
 import '../components/toastmsg.dart';
 
@@ -253,46 +253,50 @@ class _HomePageState extends State<HomePage> {
 
     void _onConfirm() async {
       final inputPassword = _passwordController.text;
-
+      // TODO: [REMOVE DEBUG VAR] Remove this when testing is done
+      bool authInTesting = true;
       // Check if password is empty
-      if (inputPassword.isEmpty) {
-        setState(() {
-          errorText = LOCALIZATION.localize('main_word.password_required');
-          showToastMessage(context, errorText!, ToastLevel.error);
-        });
-        return;
-      }
 
-      // Get password from employee data
-      final storedHash = homepageService.employeeMap[emp['id']]?['password'];
-      if (storedHash == null) {
-        HOMEPAGE_LOGS.error(
-          'Password hash not found for employee: ${emp['id']}',
-        );
-        Navigator.of(context).pop();
-        showToastMessage(
-          context,
-          LOCALIZATION.localize('main_word.password_data_error'),
-          ToastLevel.error,
-        );
-        return;
-      }
+      if (!authInTesting) {
+        if (inputPassword.isEmpty) {
+          setState(() {
+            errorText = LOCALIZATION.localize('main_word.password_required');
+            showToastMessage(context, errorText!, ToastLevel.error);
+          });
+          return;
+        }
 
-      // Validate password
-      bool isValid = await decryptPassword(
-        storedHash,
-        targetPassword: inputPassword,
-      );
-      if (!isValid) {
-        setState(() {
-          errorText = LOCALIZATION.localize('main_word.password_incorrect');
-        });
-        showToastMessage(
-          context,
-          LOCALIZATION.localize('main_word.password_incorrect'),
-          ToastLevel.error,
+        // Get password from employee data
+        final storedHash = homepageService.employeeMap[emp['id']]?['password'];
+        if (storedHash == null) {
+          HOMEPAGE_LOGS.error(
+            'Password hash not found for employee: ${emp['id']}',
+          );
+          Navigator.of(context).pop();
+          showToastMessage(
+            context,
+            LOCALIZATION.localize('main_word.password_data_error'),
+            ToastLevel.error,
+          );
+          return;
+        }
+
+        // Validate password
+        bool isValid = await decryptPassword(
+          storedHash,
+          targetPassword: inputPassword,
         );
-        return;
+        if (!isValid) {
+          setState(() {
+            errorText = LOCALIZATION.localize('main_word.password_incorrect');
+          });
+          showToastMessage(
+            context,
+            LOCALIZATION.localize('main_word.password_incorrect'),
+            ToastLevel.error,
+          );
+          return;
+        }
       }
 
       // Handle clock in/out logic here
@@ -1047,26 +1051,81 @@ class _LiveSalesSummarySectionState extends State<LiveSalesSummarySection> {
                                 ),
                               ),
                               onPressed: () async {
+                                DateTime now = DateTime.now();
+                                DateTime start;
+                                DateTime end;
+
+                                if (_selectedFilter == 'custom' &&
+                                    _selectedRange != null) {
+                                  start = _selectedRange!.start;
+                                  end = DateTime(
+                                    _selectedRange!.end.year,
+                                    _selectedRange!.end.month,
+                                    _selectedRange!.end.day,
+                                    23,
+                                    59,
+                                    59,
+                                    999,
+                                  );
+                                } else if (_selectedFilter == 'today') {
+                                  start = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                  );
+                                  end = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                    23,
+                                    59,
+                                    59,
+                                    999,
+                                  );
+                                } else if (_selectedFilter == 'hour') {
+                                  start = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                    now.hour,
+                                  );
+                                  end = start
+                                      .add(const Duration(hours: 1))
+                                      .subtract(
+                                        const Duration(milliseconds: 1),
+                                      );
+                                } else {
+                                  // fallback to today
+                                  start = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                  );
+                                  end = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                    23,
+                                    59,
+                                    59,
+                                    999,
+                                  );
+                                }
+
+                                // Then use:
                                 final file = await homepageService
                                     .exportCombinedReport(
-                                      start:
-                                          _selectedFilter == 'custom' &&
-                                                  _selectedRange != null
-                                              ? _selectedRange!.start
-                                              : DateTime.now(),
-                                      end:
-                                          _selectedFilter == 'custom' &&
-                                                  _selectedRange != null
-                                              ? DateTime(
-                                                _selectedRange!.end.year,
-                                                _selectedRange!.end.month,
-                                                _selectedRange!.end.day,
-                                                23,
-                                                59,
-                                                59,
-                                              )
-                                              : DateTime.now(),
-                                      format: 'txt',
+                                      start: start,
+                                      end: end,
+                                      format: 'txt', // or 'pdf'
                                     );
                                 showToastMessage(
                                   context,
@@ -1132,26 +1191,81 @@ class _LiveSalesSummarySectionState extends State<LiveSalesSummarySection> {
                                 ),
                               ),
                               onPressed: () async {
+                                DateTime now = DateTime.now();
+                                DateTime start;
+                                DateTime end;
+
+                                if (_selectedFilter == 'custom' &&
+                                    _selectedRange != null) {
+                                  start = _selectedRange!.start;
+                                  end = DateTime(
+                                    _selectedRange!.end.year,
+                                    _selectedRange!.end.month,
+                                    _selectedRange!.end.day,
+                                    23,
+                                    59,
+                                    59,
+                                    999,
+                                  );
+                                } else if (_selectedFilter == 'today') {
+                                  start = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                  );
+                                  end = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                    23,
+                                    59,
+                                    59,
+                                    999,
+                                  );
+                                } else if (_selectedFilter == 'hour') {
+                                  start = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                    now.hour,
+                                  );
+                                  end = start
+                                      .add(const Duration(hours: 1))
+                                      .subtract(
+                                        const Duration(milliseconds: 1),
+                                      );
+                                } else {
+                                  // fallback to today
+                                  start = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                  );
+                                  end = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                    23,
+                                    59,
+                                    59,
+                                    999,
+                                  );
+                                }
+
+                                // Then use:
                                 final file = await homepageService
                                     .exportCombinedReport(
-                                      start:
-                                          _selectedFilter == 'custom' &&
-                                                  _selectedRange != null
-                                              ? _selectedRange!.start
-                                              : DateTime.now(),
-                                      end:
-                                          _selectedFilter == 'custom' &&
-                                                  _selectedRange != null
-                                              ? DateTime(
-                                                _selectedRange!.end.year,
-                                                _selectedRange!.end.month,
-                                                _selectedRange!.end.day,
-                                                23,
-                                                59,
-                                                59,
-                                              )
-                                              : DateTime.now(),
-                                      format: 'pdf',
+                                      start: start,
+                                      end: end,
+                                      format: 'pdf', // or 'pdf'
                                     );
                                 showToastMessage(
                                   context,

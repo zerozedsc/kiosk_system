@@ -100,6 +100,7 @@ class EmployeeInfo {
   final String? description;
   final String password;
   final int exist;
+  final int isAdmin; // Default value for is_admin
   final Uint8List? image;
 
   EmployeeInfo({
@@ -113,6 +114,7 @@ class EmployeeInfo {
     this.description,
     required this.password,
     required this.exist,
+    required this.isAdmin,
     this.image,
   });
 
@@ -127,6 +129,7 @@ class EmployeeInfo {
     description: map['description'],
     password: map['password'],
     exist: map['exist'],
+    isAdmin: map['is_admin'] ?? 0, // Default to 0 if not present
     image: map['image'],
   );
 
@@ -141,6 +144,7 @@ class EmployeeInfo {
     'description': description,
     'password': password,
     'exist': exist,
+    'is_admin': isAdmin,
     'image': image,
   };
 }

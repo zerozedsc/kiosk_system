@@ -7,7 +7,6 @@
 - [X] Ensure all admin authentication flows use the updated method.
 - [ ] Test admin login and protected actions to confirm correct behavior.
 - [ ] Remove any deprecated or unused admin authentication code.
-
 > Reference: See `adminAuth` in `lib/services/database/db.dart`
 
 ## 2. Live Sales Summary Advanced Features
@@ -16,6 +15,17 @@
 - [X] Implement "Sales by Product/Category" view (check how data is saved for grouping) **[High Priority]**.
 - [X] Add basic time-based filtering (e.g., "Today," "This Hour," custom range) to the live summary **[High Priority]**.
 - [X] Include a payment method summary in the advanced dialog **[Mid Priority]**.
-- [ ] Implement export of filtered sales report to TXT/PDF/Excel (after above priorities are done).
-
+- [X] Implement export of filtered sales report to TXT/PDF/Excel (after above priorities are done).
 > Reference: See analytics logic in `lib/services/analytics/analytics.dart` and dialog UI in homepage components.
+
+##
+
+
+
+## 4. Employee Account Attendance Table (More Page)
+
+- [X] Create a new button in each employee list item to show attendance table.
+- [X] Display a table of total attendance (in, out, total hours) for one month.
+- [X] Allow user to pick which month to view attendance data.
+- [X] Implement export of attendance report in CSV and PDF formats.
+> Reference: See employee account logic in `lib/pages/more/employee_account.dart`
