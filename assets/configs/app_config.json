@@ -67,6 +67,7 @@
     },
     "kiosk_info": {
         "kiosk_id": "ID",
+        "kiosk_key": "KEY",
         "kiosk_name": "NAME",
         "kiosk_password": "PASSWORD",
         "location": "Location",

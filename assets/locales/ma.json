@@ -153,7 +153,10 @@
         "admin_auth_required": "Pengesahan Admin Diperlukan",
         "unlock_inventory": "Buka Inventori",
         "attendance": "Kehadiran",
-        "total_hours": "Jumlah Jam"
+        "total_hours": "Jumlah Jam",
+        "invalid_password": "Kata Laluan Tidak Sah",
+        "already_registered": "Kiosk sudah didaftar",
+        "admin_auth_failed": "Pengesahan Admin Gagal"
     },
     "home_page": {
         "title": "Laman Utama",
@@ -191,7 +194,8 @@
         "by_category": "Mengikut Kategori",
         "unknown_category": "Kategori Tidak Diketahui",
         "advanced_sales_summary": "Ringkasan Jualan Lanjutan",
-        "payment_method_summary": "Ringkasan Kaedah Pembayaran"
+        "payment_method_summary": "Ringkasan Kaedah Pembayaran",
+        "no_notifications_details": "Anda telah melihat semua notifikasi terkini."
     },
     "auth_page": {
         "signup_kiosk": "Daftar Kiosk",
@@ -209,7 +213,7 @@
         "forgot_password_message": "Lupa Kata Laluan",
         "reset_password": "Tetapkan Semula Kata Laluan",
         "reset_password_button": "Tetapkan Semula",
-        "username": "Nama Pengguna",
+        "username": "UserName",
         "kiosk_id": "ID Kiosk",
         "admin_password": "Kata Laluan Admin",
         "kiosk_password": "Kata Laluan Kiosk",
@@ -371,7 +375,9 @@
         "restart": "Mulakan Semula",
         "about": "Tentang APP",
         "about_desc": "Aplikasi ini dibangunkan oleh MUHAMMAD HELMI BIN ROZAIN. Kekeliruan atau masalah sila laporkan",
-        "adjust_kiosk_info": "Pembetulan Maklumat Kiosk"
+        "adjust_kiosk_info": "Pembetulan Maklumat Kiosk",
+        "no_employees_found": "Tiada Pekerja Ditemui",
+        "sync_employee_data_warning": "Amaran: "
     },
     "bluetooth_service": {
         "permission": "Kebenaran Bluetooth",

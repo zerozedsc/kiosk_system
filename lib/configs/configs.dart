@@ -42,7 +42,7 @@ late Map<String, dynamic> globalAppConfig;
 // ignore: non_constant_identifier_names
 late LocalizationManager LOCALIZATION;
 // ignore: non_constant_identifier_names
-late LoggingService APP_LOGS;
+late LoggingService APP_LOGS, SERVER_LOGS;
 BtPrinter? btPrinter;
 UsbManager? USB;
 bool canVibrate = false;
@@ -639,44 +639,7 @@ dynamic getDateTimeNow({
   return DateFormat(format).format(DateTime.now());
 }
 
-/// Generates a strong password of the specified length.
-String generateStrongPassword(
-  int length, {
-  bool includeSpecialChars = false,
-  bool includeDigits = true,
-  bool includeUppercase = true,
-  bool includeLowercase = true,
-}) {
-  const String upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const String lower = 'abcdefghijklmnopqrstuvwxyz';
-  const String digits = '0123456789';
-  const String special = '@#\$%^&*()-_=+[]{}|;:,.<>?';
-  final String all =
-      (includeUppercase ? upper : '') +
-      (includeLowercase ? lower : '') +
-      (includeDigits ? digits : '') +
-      (includeSpecialChars ? special : '');
-  final rand = Random.secure();
-
-  // Ensure at least one character from each set
-  String password =
-      [
-        if (includeUppercase) upper[rand.nextInt(upper.length)],
-        if (includeLowercase) lower[rand.nextInt(lower.length)],
-        if (includeDigits) digits[rand.nextInt(digits.length)],
-        if (includeSpecialChars) special[rand.nextInt(special.length)],
-      ].join();
-
-  // Fill the rest with random chars
-  for (int i = password.length; i < length; i++) {
-    password += all[rand.nextInt(all.length)];
-  }
-
-  // Shuffle the password
-  List<String> chars = password.split('')..shuffle(rand);
-  return chars.join();
-}
-
+/// Gets the current address based on the device's location.
 Future<Map<String, dynamic>> getCurrentAddress() async {
   try {
     // Try to get current position with a timeout (e.g., 8 seconds)

@@ -43,90 +43,20 @@ class InventoryPageState extends State<InventoryPage>
   }
 
   Future<void> _showAdminAuthDialog() async {
-    final TextEditingController _passwordController = TextEditingController();
-    bool _loading = false;
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Text(
-                LOCALIZATION.localize("main_word.admin_auth") ??
-                    "Admin Authentication",
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    LOCALIZATION.localize("auth_page.enter_admin_password") ??
-                        "Enter admin password to access inventory.",
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText:
-                          LOCALIZATION.localize("auth_page.admin_password") ??
-                          "Admin Password",
-                      border: const OutlineInputBorder(),
-                    ),
-                    onSubmitted: (_) async {
-                      setStateDialog(() => _loading = true);
-                      bool valid = await adminAuth(_passwordController.text);
-                      setStateDialog(() => _loading = false);
-                      if (valid) {
-                        Navigator.of(context).pop();
-                        setState(() => _isAuthenticated = true);
-                      } else {
-                        showToastMessage(
-                          context,
-                          LOCALIZATION.localize("main_word.invalid_password") ??
-                              "Invalid password",
-                          ToastLevel.error,
-                        );
-                        _passwordController.clear();
-                      }
-                    },
-                  ),
-                  if (_loading)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 16),
-                      child: CircularProgressIndicator(),
-                    ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () async {
-                    setStateDialog(() => _loading = true);
-                    bool valid = await adminAuth(_passwordController.text);
-                    setStateDialog(() => _loading = false);
-                    if (valid) {
-                      Navigator.of(context).pop();
-                      setState(() => _isAuthenticated = true);
-                    } else {
-                      showToastMessage(
-                        context,
-                        LOCALIZATION.localize("main_word.invalid_password") ??
-                            "Invalid password",
-                        ToastLevel.error,
-                      );
-                      _passwordController.clear();
-                    }
-                  },
-                  child: Text(
-                    LOCALIZATION.localize("main_word.confirm") ?? "Confirm",
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+    bool? adminAuthConfirm = await AdminAuthDialog.show(context);
+
+    if (adminAuthConfirm == null || !adminAuthConfirm) {
+      showToastMessage(
+        context,
+        LOCALIZATION.localize("main_word.admin_auth_failed") ??
+            "Admin authentication failed.",
+        ToastLevel.error,
+      );
+      return;
+    }
+
+    // If authentication is successful, set the state to authenticated
+    setState(() => _isAuthenticated = true);
   }
 
   Future<void> _reloadInventory() async {

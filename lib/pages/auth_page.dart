@@ -201,18 +201,41 @@ class _SignupPageState extends State<SignupPage> {
                         // Signup Button
                         ElevatedButtonWithSound(
                           onPressed: () async {
+                            String adminPassword =
+                                adminPasswordController.text.trim();
+
+                            bool checkAdminAuth =
+                                adminPassword ==
+                                const String.fromEnvironment('ADMIN_PASSWORD');
+                            if (!checkAdminAuth) {
+                              showToastMessage(
+                                context,
+                                LOCALIZATION.localize(
+                                  'auth_page.invalid_admin_password',
+                                ),
+                                ToastLevel.error,
+                                position: ToastPosition.bottom,
+                              );
+                              return;
+                            }
+
                             Map<String, dynamic> data = {
                               "kiosk_id": "RZKIOSK001",
-                              "kiosk_password":
-                                  DEBUG ? "1234" : generateStrongPassword(6),
+                              "kiosk_password": EncryptService()
+                                  .generateStrongPassword(6),
                               "kiosk_name": kioskNameController.text.trim(),
                               "location": locationController.text.trim(),
                             };
 
                             final checkSignUp =
-                                await AppFirstAuthService.signup(context, data);
+                                await KioskAuthService.registerKiosk(
+                                  context,
+                                  data,
+                                );
 
-                            if (checkSignUp) {
+                            data["kiosk_id"] = checkSignUp["kiosk_id"];
+
+                            if (checkSignUp["success"]) {
                               showToastMessage(
                                 context,
                                 LOCALIZATION.localize(
@@ -243,6 +266,7 @@ class _SignupPageState extends State<SignupPage> {
                                             "${LOCALIZATION.localize('auth_page.kiosk_id')}: $kioskId",
                                           ),
                                           const SizedBox(height: 8),
+
                                           Text(
                                             "${LOCALIZATION.localize('auth_page.kiosk_password')}: $kioskPassword",
                                           ),
@@ -276,9 +300,7 @@ class _SignupPageState extends State<SignupPage> {
                             } else {
                               showToastMessage(
                                 context,
-                                LOCALIZATION.localize(
-                                  'auth_page.account_creation_failed',
-                                ),
+                                "${LOCALIZATION.localize('auth_page.account_creation_failed')} ${checkSignUp["message"]}",
                                 ToastLevel.error,
                                 position: ToastPosition.bottom,
                               );
@@ -460,7 +482,7 @@ class _LoginPageState extends State<LoginPage> {
                             return;
                           }
 
-                          final checkLogin = await AppFirstAuthService.login(
+                          final checkLogin = await KioskAuthService.loginKiosk(
                             context,
                             {
                               "kiosk_id": kioskId,
@@ -469,14 +491,26 @@ class _LoginPageState extends State<LoginPage> {
                           );
 
                           if (checkLogin["success"]) {
+                            // Show login success message
+                            String successMessage = LOCALIZATION.localize(
+                              'auth_page.${checkLogin["message"]}',
+                            );
+
+                            // Add online status to message
+                            bool isOnline = checkLogin["is_online"] ?? false;
+                            String statusMessage =
+                                isOnline ? " (Online)" : " (Offline)";
+
                             showToastMessage(
                               context,
-                              LOCALIZATION.localize(
-                                'auth_page.${checkLogin["message"]}',
-                              ),
+                              successMessage + statusMessage,
                               ToastLevel.success,
                               position: ToastPosition.bottom,
                             );
+
+                            // Sync kiosk credentials to config
+                            KioskAuthService.syncKioskKeyToConfig();
+
                             Navigator.push(
                               context,
                               MaterialPageRoute(

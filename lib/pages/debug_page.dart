@@ -5,6 +5,7 @@ import '../services/inventory/inventory_services.dart';
 import '../services/connection/bluetooth.dart';
 import '../services/connection/usb.dart';
 import '../services/auth/auth_service.dart';
+import '../services/connection/internet.dart';
 
 import '../components/toastmsg.dart';
 
@@ -199,7 +200,9 @@ class _DebugPageState extends State<DebugPage>
                         onPressed: () async {
                           final encrypted = _decryptController.text.trim();
                           if (encrypted.isEmpty) return;
-                          final result = await decryptPassword(encrypted);
+                          final result = await EncryptService().decryptPassword(
+                            encrypted,
+                          );
                           _decryptedPassword.value =
                               result is String ? result : 'Failed to decrypt';
                         },
@@ -1652,5 +1655,282 @@ class _DebugPageState extends State<DebugPage>
       ),
       body: TabBarView(controller: _tabController, children: children),
     );
+  }
+}
+
+/// Test page to debug and verify internet connectivity detection
+class ConnectivityTestPage extends StatefulWidget {
+  const ConnectivityTestPage({Key? key}) : super(key: key);
+
+  @override
+  State<ConnectivityTestPage> createState() => _ConnectivityTestPageState();
+}
+
+class _ConnectivityTestPageState extends State<ConnectivityTestPage> {
+  bool? _hasNetworkConnection;
+  bool? _hasRealInternet;
+  String _testResults = '';
+  bool _isTestingNetwork = false;
+  bool _isTestingInternet = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Connectivity Test'),
+        backgroundColor: Colors.blue.shade800,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Real-time status
+            StreamBuilder<bool>(
+              stream: internetConnectionService.onInternetChanged,
+              builder: (context, snapshot) {
+                final hasInternet = snapshot.data;
+                return Card(
+                  color:
+                      hasInternet == true
+                          ? Colors.green.shade100
+                          : Colors.red.shade100,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(
+                          hasInternet == true ? Icons.wifi : Icons.wifi_off,
+                          size: 48,
+                          color:
+                              hasInternet == true ? Colors.green : Colors.red,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Real-time Status',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Text(
+                          hasInternet == true
+                              ? 'Internet Connected'
+                              : hasInternet == false
+                              ? 'No Internet'
+                              : 'Checking...',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                hasInternet == true ? Colors.green : Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            // Manual tests
+            Text('Manual Tests', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+
+            // Network connectivity test
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Network Connectivity (Basic)',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed:
+                                _isTestingNetwork
+                                    ? null
+                                    : _testNetworkConnectivity,
+                            child:
+                                _isTestingNetwork
+                                    ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                    : const Text('Test Network'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(
+                          _hasNetworkConnection == true
+                              ? Icons.check_circle
+                              : _hasNetworkConnection == false
+                              ? Icons.cancel
+                              : Icons.help,
+                          color:
+                              _hasNetworkConnection == true
+                                  ? Colors.green
+                                  : _hasNetworkConnection == false
+                                  ? Colors.red
+                                  : Colors.grey,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Real internet test
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Real Internet Access',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed:
+                                _isTestingInternet ? null : _testRealInternet,
+                            child:
+                                _isTestingInternet
+                                    ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                    : const Text('Test Internet'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(
+                          _hasRealInternet == true
+                              ? Icons.check_circle
+                              : _hasRealInternet == false
+                              ? Icons.cancel
+                              : Icons.help,
+                          color:
+                              _hasRealInternet == true
+                                  ? Colors.green
+                                  : _hasRealInternet == false
+                                  ? Colors.red
+                                  : Colors.grey,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Force refresh
+            ElevatedButton.icon(
+              onPressed: () async {
+                await internetConnectionService.checkAndUpdateStatus();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Connectivity status refreshed'),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Force Refresh Status'),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Test results
+            if (_testResults.isNotEmpty) ...[
+              Text(
+                'Test Details',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _testResults,
+                  style: const TextStyle(fontFamily: 'monospace'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _testNetworkConnectivity() async {
+    setState(() {
+      _isTestingNetwork = true;
+      _testResults = 'Testing network connectivity...';
+    });
+
+    try {
+      final result = await internetConnectionService.hasNetworkConnection();
+      setState(() {
+        _hasNetworkConnection = result;
+        _testResults +=
+            '\n✅ Network test completed: ${result ? "Connected" : "Disconnected"}';
+      });
+    } catch (e) {
+      setState(() {
+        _hasNetworkConnection = false;
+        _testResults += '\n❌ Network test failed: $e';
+      });
+    } finally {
+      setState(() {
+        _isTestingNetwork = false;
+      });
+    }
+  }
+
+  Future<void> _testRealInternet() async {
+    setState(() {
+      _isTestingInternet = true;
+      _testResults = 'Testing real internet access...';
+    });
+
+    try {
+      final result = await internetConnectionService.isConnected();
+      setState(() {
+        _hasRealInternet = result;
+        _testResults +=
+            '\n✅ Internet test completed: ${result ? "Has Internet" : "No Internet"}';
+      });
+    } catch (e) {
+      setState(() {
+        _hasRealInternet = false;
+        _testResults += '\n❌ Internet test failed: $e';
+      });
+    } finally {
+      setState(() {
+        _isTestingInternet = false;
+      });
+    }
   }
 }

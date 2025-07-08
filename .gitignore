@@ -47,4 +47,6 @@ app.*.map.json
 # misc
 memory-bank/
 app-backup.db
-.env
+*.env
+AGENT_AI/
+commands_save.txt

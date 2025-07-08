@@ -8,9 +8,12 @@ import 'services/database/db.dart';
 import 'services/inventory/inventory_services.dart';
 import 'services/connection/bluetooth.dart';
 import 'services/connection/usb.dart';
+import 'services/connection/internet.dart';
 import 'services/auth/auth_service.dart';
 
 import 'components/toastmsg.dart';
+import 'components/notification_island.dart';
+import 'components/global_toast_notification.dart';
 
 // ignore: unused_element
 // 035368 pin tab
@@ -18,6 +21,7 @@ import 'components/toastmsg.dart';
 Future<void> runAppInitializations() async {
   // Set up logging
   APP_LOGS = await LoggingService(logName: "app_logs").initialize();
+  SERVER_LOGS = await LoggingService(logName: "server_logs").initialize();
 
   // Initialize configuration
   globalAppConfig =
@@ -27,7 +31,8 @@ Future<void> runAppInitializations() async {
   // Initialize Database
   DBNAME = 'app.db';
   DB = await DatabaseConnection.getDatabase(dbName: DBNAME);
-  await getOrCreateEncryptionKey(); // Ensures key is generated/stored
+  await EncryptService()
+      .getOrCreateEncryptionKey(); // Ensures key is generated/stored
   EMPQUERY = EmployeeQuery(db: DB, logs: APP_LOGS);
   await EMPQUERY.initialize();
   inventory = await InventoryServices().initialize();
@@ -37,6 +42,14 @@ Future<void> runAppInitializations() async {
   LOCALIZATION = LocalizationManager(
     globalAppConfig["userPreferences"]["language"] ?? "ma",
   );
+
+  // Initialize Internet Connection Service
+  internetConnectionService = InternetConnectionService();
+
+  // Perform initial internet connectivity check
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await internetConnectionService.checkAndUpdateStatus();
+  });
 
   // Initialize Vibration
   canVibrate = await Vibration.hasVibrator();
@@ -120,22 +133,44 @@ class _AppRootState extends State<AppRoot> {
             ),
           ),
           themeMode: themeValue == "dark" ? ThemeMode.dark : ThemeMode.light,
-          home: Builder(
-            builder: (context) {
-              // Now we have a context with MaterialLocalizations
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                // Initialize Bluetooth in the background
-                checkPermissionsAndInitBluetooth(context);
+          home: StreamBuilder<bool>(
+            stream: internetConnectionService.onInternetChanged,
+            initialData: false, // Start assuming no internet
+            builder: (context, snapshot) {
+              final isConnected = snapshot.data ?? false;
 
-                // Initialize USB Manager in parallel
-                checkPermissionsAndInitUsb(context);
-              });
-              if (globalAppConfig["kiosk_info"]?["registered"]) {
-                // If the app is not registered, show the registration page
-                return const LoginPage();
-              } else {
-                return const SignupPage();
-              }
+              return Stack(
+                children: [
+                  // Your main app content
+                  Builder(
+                    builder: (context) {
+                      // Now we have a context with MaterialLocalizations
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        // Set the context for global toast notifications
+                        GlobalToastNotification.instance.setContext(context);
+
+                        // Initialize Bluetooth in the background
+                        checkPermissionsAndInitBluetooth(context);
+
+                        // Initialize USB Manager in parallel
+                        checkPermissionsAndInitUsb(context);
+                      });
+                      if (globalAppConfig["kiosk_info"]?["registered"]) {
+                        // If the app is not registered, show the registration page
+                        return const LoginPage();
+                      } else {
+                        return const SignupPage();
+                      }
+                    },
+                  ),
+                  // Modern notification island for connectivity status
+                  if (!isConnected)
+                    PositionedNotificationIsland.top(
+                      notification: NotificationTypes.offline,
+                      topPadding: MediaQuery.of(context).padding.top + 10,
+                    ),
+                ],
+              );
             },
           ),
           debugShowCheckedModeBanner: false,

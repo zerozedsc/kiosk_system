@@ -930,7 +930,9 @@ class EmployeeQuery {
           newData.remove('password');
         } else {
           // Encrypt password and assign it directly
-          newData['password'] = await encryptPassword(newData['password']);
+          newData['password'] = await EncryptService().encryptPassword(
+            newData['password'],
+          );
         }
         if (await dbQuery.updateData('employee_info', int.parse(id), newData)) {
           logs.info('Updated employee with id $id');
@@ -947,11 +949,39 @@ class EmployeeQuery {
           return false;
         }
         // Encrypt password and assign it directly
-        newData['password'] = await encryptPassword(newData['password']);
+        newData['password'] = await EncryptService().encryptPassword(
+          newData['password'],
+        );
+
         if (await dbQuery.insertNewData('employee_info', newData)) {
           logs.info('Inserted new employee');
-          employees["${employees.length}"] = newData;
-          totalEmployees++;
+
+          // Get the newly inserted employee's ID by querying the database
+          // Find the last inserted employee by username (which should be unique)
+          final List<Map<String, dynamic>> insertedEmployees = await db.query(
+            'employee_info',
+            where: 'username = ?',
+            whereArgs: [newData['username']],
+            orderBy: 'id DESC',
+            limit: 1,
+          );
+
+          if (insertedEmployees.isNotEmpty) {
+            final insertedEmployee = insertedEmployees.first;
+            final insertedId = insertedEmployee['id'];
+            logs.info('Found newly inserted employee with ID: $insertedId');
+
+            // Add the ID to the data and store it with the correct key
+            newData['id'] = insertedId;
+            employees["$insertedId"] = {...insertedEmployee};
+            totalEmployees++;
+          } else {
+            logs.warning(
+              'Could not find newly inserted employee, using fallback indexing',
+            );
+            employees["${employees.length}"] = newData;
+            totalEmployees++;
+          }
         } else {
           logs.error('Failed to insert new employee');
           return false;
