@@ -377,7 +377,11 @@
         "about_desc": "Aplikasi ini dibangunkan oleh MUHAMMAD HELMI BIN ROZAIN. Kekeliruan atau masalah sila laporkan",
         "adjust_kiosk_info": "Pembetulan Maklumat Kiosk",
         "no_employees_found": "Tiada Pekerja Ditemui",
-        "sync_employee_data_warning": "Amaran: "
+        "sync_employee_data_warning": "Amaran: ",
+        "sync_status_important_note": "⚠️ Sila simpan maklumat ini dengan selamat. Pekerja akan memerlukannya untuk log masuk.",
+        "employee_created_success": "Pekerja berjaya ditambah",
+        "employee_updated_success": "Maklumat pekerja berjaya dikemas kini",
+        "delete_employee_message": "Data pekerja telah dipadam."
     },
     "bluetooth_service": {
         "permission": "Kebenaran Bluetooth",

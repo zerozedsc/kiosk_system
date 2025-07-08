@@ -7,6 +7,7 @@ import 'package:open_file/open_file.dart';
 import '../services/homepage/homepage_service.dart';
 import '../services/auth/auth_service.dart';
 import '../services/notification/enhanced_notification_service.dart';
+import '../services/database/db.dart';
 
 import '../components/toastmsg.dart';
 
@@ -153,13 +154,69 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Debug information
+        if (attendanceMaps.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              "No attendance data available",
+              style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+            ),
+          ),
+
         // Use the map and its entries correctly
         ...attendanceMaps.entries
-            .where((entry) => entry.key != '0') // Skip key '0'
+            .where((entry) {
+              // Skip key '0' which might be a placeholder
+              if (entry.key == '0') return false;
+
+              final value = entry.value;
+              final String? attendanceUsername = value['username'] as String?;
+
+              // If username is not in the attendance record, filter it out.
+              if (attendanceUsername == null) {
+                return false;
+              }
+
+              // Find the corresponding employee in the main employee list (EMPQUERY.employees)
+              // by matching the username.
+              final targetEmployee = EMPQUERY.employees.values.firstWhere(
+                (emp) => emp['username'] == attendanceUsername,
+                orElse:
+                    () =>
+                        <
+                          String,
+                          dynamic
+                        >{}, // Return an empty map if not found to avoid errors.
+              );
+
+              // If the employee is not found in the main list, don't show them in attendance.
+              if (targetEmployee.isEmpty) {
+                return false;
+              }
+
+              // Get the 'exist' status from the found employee data.
+              final existValue = targetEmployee['exist'];
+
+              // Check if the employee is active. Handles different possible data types for 'exist'.
+              final bool isActive =
+                  existValue == 1 || existValue == '1' || existValue == true;
+
+              return isActive;
+            })
             .map((entry) {
               final id = entry.key;
               final empData = entry.value;
-              final emp = {...empData, 'id': id}; // Add employee ID to the map
+
+              // Ensure we have all required fields
+              final emp = {
+                ...empData,
+                'id': id, // Add employee ID to the map
+                'name': empData['name'] ?? 'Unknown Employee',
+                'username': empData['username'] ?? 'unknown',
+                'clock_in': empData['clock_in'] ?? '',
+                'clock_out': empData['clock_out'] ?? '',
+              };
 
               return _buildattendanceMapsTile(emp, mainColor);
             }),
@@ -209,8 +266,10 @@ class _HomePageState extends State<HomePage> {
       statusText = LOCALIZATION.localize('home_page.clocked_out').toUpperCase();
     }
 
-    // Get employee image if exists
-    final imageBytes = homepageService.employeeMap[emp['id']]?['image'];
+    // Get employee image if exists - try both id and username as keys
+    final imageBytes =
+        homepageService.employeeMap[emp['id']]?['image'] ??
+        homepageService.employeeMap[emp['username']]?['image'];
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -277,7 +336,7 @@ class _HomePageState extends State<HomePage> {
     void _onConfirm() async {
       final inputPassword = _passwordController.text;
       // TODO: [REMOVE DEBUG VAR] Remove this when testing is done
-      bool authInTesting = true;
+      bool authInTesting = false; // Changed to false to enable authentication
       // Check if password is empty
 
       if (!authInTesting) {
@@ -289,11 +348,13 @@ class _HomePageState extends State<HomePage> {
           return;
         }
 
-        // Get password from employee data
-        final storedHash = homepageService.employeeMap[emp['id']]?['password'];
+        // Get password from employee data - try both id and username as keys
+        final storedHash =
+            homepageService.employeeMap[emp['id']]?['password'] ??
+            homepageService.employeeMap[emp['username']]?['password'];
         if (storedHash == null) {
           HOMEPAGE_LOGS.error(
-            'Password hash not found for employee: ${emp['id']}',
+            'Password hash not found for employee: ${emp['id']} (${emp['username']})',
           );
           Navigator.of(context).pop();
           showToastMessage(

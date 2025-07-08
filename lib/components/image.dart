@@ -79,6 +79,57 @@ Future<Uint8List> convertForThermalPrinter(String assetPath) async {
   return Uint8List.fromList(img.encodePng(thermalImage));
 }
 
+/// [080725] Resize an image to a reasonable size (e.g., 800px width)
+/// and encode it with reduced quality (e.g., 80%).
+/// This function can handle both [File] and [Uint8List] as input sources.
+/// If the source is a [File], it reads the bytes from the file.
+/// If the source is a [Uint8List], it uses the bytes directly.
+/// Returns the resized image as a [Uint8List].
+/// If the source is neither, it throws an [ArgumentError].
+/// This is useful for optimizing images for display in the app,
+/// especially when dealing with large images that need to be resized
+/// and compressed for better performance.
+/// /// Example usage:
+/// /// ```dart
+///   Uint8List resizedImage = await resizeImage(
+///     source: myFile, // or Uint8List
+///    width: 450,
+///   height: 450,
+/// ///   quality: 80,
+/// /// );
+Future<Uint8List> resizeImage({
+  required dynamic source,
+  int width = 450,
+  int height = 450,
+  int quality = 80,
+}) async {
+  Uint8List bytes;
+
+  // Handle different source types
+  if (source is File) {
+    // Read the image from file
+    bytes = await source.readAsBytes();
+  } else if (source is Uint8List) {
+    // Source is already Uint8List
+    bytes = source;
+  } else {
+    throw ArgumentError('Source must be either File or Uint8List');
+  }
+
+  final img.Image? image = img.decodeImage(bytes);
+  if (image == null) return bytes;
+
+  // Resize the image to a reasonable size (e.g., 800px width)
+  final img.Image resizedImage = img.copyResize(
+    image,
+    width: width,
+    height: (height * image.height / image.width).round(),
+  );
+
+  // Encode the image with reduced quality (80%)
+  return Uint8List.fromList(img.encodeJpg(resizedImage, quality: quality));
+}
+
 class CardImage extends StatelessWidget {
   final dynamic imageSource;
   final BoxFit fit;

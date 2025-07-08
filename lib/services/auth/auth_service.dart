@@ -9,7 +9,7 @@ import '../server/kiosk_server.dart';
 import '../../components/toastmsg.dart';
 
 class KioskAuthService {
-  /// [050725] Handles kiosk login and registration
+  /// [080725] Handles kiosk login with sync status awareness
   static Future<Map<String, dynamic>> loginKiosk(
     BuildContext context,
     Map<String, dynamic> data,
@@ -27,9 +27,10 @@ class KioskAuthService {
     );
 
     try {
-      // Check kiosk ID
-      bool kioskId =
-          data["kiosk_id"] == globalAppConfig["kiosk_info"]?["kiosk_id"];
+      // Check kiosk ID (including temporary ID)
+      final storedKioskId = globalAppConfig["kiosk_info"]?["kiosk_id"];
+      bool kioskId = data["kiosk_id"] == storedKioskId;
+
       if (!kioskId) {
         Navigator.of(context).pop();
         return {"success": false, "message": "login_id_failed"};
@@ -49,6 +50,9 @@ class KioskAuthService {
       // Check if kiosk is online after successful local authentication
       bool isOnline = await _checkKioskOnlineStatus();
 
+      // Get sync status
+      final syncStatus = getSyncStatus();
+
       // Close loading dialog
       Navigator.of(context).pop();
 
@@ -56,6 +60,9 @@ class KioskAuthService {
         "success": true,
         "message": "login_success",
         "is_online": isOnline,
+        "kiosk_id": storedKioskId,
+        "sync_status": syncStatus,
+        "needs_sync": syncStatus["needs_sync"],
       };
     } catch (e, stack) {
       APP_LOGS.error('Login failed', e, stack);
@@ -64,7 +71,10 @@ class KioskAuthService {
     }
   }
 
-  /// [050725] Handles kiosk registration with server
+  /// [080725] Handles kiosk registration with local-first approach
+  /// Step 1: Save to local config with temporary kiosk ID
+  /// Step 2: Sync with server to get real kiosk ID and key
+  /// Step 3: Update local config with server credentials
   static Future<Map<String, dynamic>> registerKiosk(
     BuildContext context,
     Map<String, dynamic> data,
@@ -83,6 +93,45 @@ class KioskAuthService {
     );
 
     try {
+      // STEP 1: Save to local config first with temporary kiosk ID
+      APP_LOGS.info('Step 1: Saving kiosk data locally with temporary ID');
+
+      // Store kiosk information locally with temporary ID
+      globalAppConfig["kiosk_info"]?["kiosk_id"] = "TMPKIOSK";
+      globalAppConfig["kiosk_info"]?["kiosk_key"] = "TMPKEY";
+      globalAppConfig["kiosk_info"]?["kiosk_name"] = data["kiosk_name"];
+      globalAppConfig["kiosk_info"]?["location"] = data["location"];
+
+      // Store password locally as AES encrypted
+      globalAppConfig["kiosk_info"]?["kiosk_password"] = await EncryptService()
+          .encryptPasswordForLocal(data["kiosk_password"]);
+
+      globalAppConfig["kiosk_info"]?["registered"] =
+          false; // Not fully registered yet
+      globalAppConfig["kiosk_info"]?["sync_pending"] =
+          true; // Mark as needing server sync
+
+      // Update timestamp
+      globalAppConfig["kiosk_info"]?["last_sync"] =
+          DateTime.now().toIso8601String();
+
+      // Test local save first
+      final checkUpdateConfig = await ConfigService.updateConfig();
+      if (!checkUpdateConfig) {
+        APP_LOGS.error('Failed to save kiosk data locally');
+        Navigator.of(context).pop();
+        return {
+          "success": false,
+          "message": "local_save_failed",
+          "details": "Could not save kiosk data to local storage",
+        };
+      }
+
+      APP_LOGS.info('Step 1 completed: Kiosk data saved locally');
+
+      // STEP 2: Sync with server to get real credentials
+      APP_LOGS.info('Step 2: Syncing with server to get real kiosk ID and key');
+
       // Create password hash for server (SHA-256)
       String serverPasswordHash = EncryptService().encryptPasswordForServer(
         data["kiosk_password"],
@@ -98,49 +147,74 @@ class KioskAuthService {
 
       String kioskId = serverResult["kiosk_id"] ?? "";
       String kioskKey = serverResult["kiosk_key"] ?? "";
-      if (kioskId != "" && kioskKey != "") {
-        // Store kiosk information locally
-        globalAppConfig["kiosk_info"]?["kiosk_id"] = serverResult["kiosk_id"];
-        globalAppConfig["kiosk_info"]?["kiosk_key"] = serverResult["kiosk_key"];
-        globalAppConfig["kiosk_info"]?["kiosk_name"] = data["kiosk_name"];
-        globalAppConfig["kiosk_info"]?["location"] = data["location"];
 
-        // Store password locally as AES encrypted
-        globalAppConfig["kiosk_info"]?["kiosk_password"] =
-            await EncryptService().encryptPasswordForLocal(
-              data["kiosk_password"],
-            );
-
-        globalAppConfig["kiosk_info"]?["registered"] = true;
-
-        // Update timestamp
-        globalAppConfig["kiosk_info"]?["last_sync"] =
-            DateTime.now().toIso8601String();
-
-        final checkUpdateConfig = await ConfigService.updateConfig();
-
-        if (!checkUpdateConfig) {
-          APP_LOGS.error(
-            'Failed to update global app config after registration',
-          );
-          throw Exception('Failed to update global app config');
-        }
-
-        // Close loading dialog
+      if (kioskId.isEmpty || kioskKey.isEmpty) {
+        APP_LOGS.warning(
+          'Server returned empty credentials, keeping local data with temporary ID',
+        );
         Navigator.of(context).pop();
-
         return {
           "success": true,
-          "message": "registration_success",
-          "kiosk_id": kioskId,
+          "message": "registration_local_only",
+          "kiosk_id": "TMPKIOSK",
+          "details":
+              "Saved locally but server sync failed. Will retry when connection improves.",
         };
-      } else {
-        SERVER_LOGS.error('Server registration failed - missing credentials');
-        throw Exception('Server registration failed - missing credentials');
       }
+
+      // STEP 3: Update local config with server credentials
+      APP_LOGS.info('Step 3: Updating local config with server credentials');
+
+      globalAppConfig["kiosk_info"]?["kiosk_id"] = kioskId;
+      globalAppConfig["kiosk_info"]?["kiosk_key"] = kioskKey;
+      globalAppConfig["kiosk_info"]?["registered"] =
+          true; // Fully registered now
+      globalAppConfig["kiosk_info"]?["sync_pending"] = false; // Sync completed
+
+      // Update timestamp
+      globalAppConfig["kiosk_info"]?["last_sync"] =
+          DateTime.now().toIso8601String();
+
+      // Save updated config
+      final finalUpdateConfig = await ConfigService.updateConfig();
+      if (!finalUpdateConfig) {
+        APP_LOGS.error('Failed to update config with server credentials');
+        // Keep the temporary ID but log the issue
+        APP_LOGS.warning(
+          'Kiosk is registered on server but local config update failed',
+        );
+      }
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      APP_LOGS.info(
+        'Registration completed successfully with kiosk ID: $kioskId',
+      );
+      return {
+        "success": true,
+        "message": "registration_success",
+        "kiosk_id": kioskId,
+        "kiosk_key": kioskKey,
+      };
     } catch (e, stack) {
       APP_LOGS.error('Registration failed', e, stack);
       Navigator.of(context).pop();
+
+      // Check if we have local data saved (Step 1 succeeded)
+      if (globalAppConfig["kiosk_info"]?["kiosk_id"] == "TMPKIOSK") {
+        APP_LOGS.info(
+          'Local data preserved with temporary ID despite server error',
+        );
+        return {
+          "success": true,
+          "message": "registration_local_fallback",
+          "kiosk_id": "TMPKIOSK",
+          "details":
+              "Saved locally but server sync failed: ${e.toString()}. Will retry when connection improves.",
+        };
+      }
+
       return {
         "success": false,
         "message": e is Exception ? e.toString() : 'registration_error',
@@ -223,6 +297,123 @@ class KioskAuthService {
       APP_LOGS.warning('Failed to sync kiosk credentials: $e');
     }
   }
+
+  /// [080725] Retry server sync for kiosks with temporary IDs
+  /// This method can be called when network connectivity is restored
+  static Future<Map<String, dynamic>> retryServerSync() async {
+    try {
+      // Check if we have a temporary kiosk ID
+      final currentKioskId = globalAppConfig["kiosk_info"]?["kiosk_id"];
+      final syncPending =
+          globalAppConfig["kiosk_info"]?["sync_pending"] ?? false;
+
+      if (currentKioskId != "TMPKIOSK" || !syncPending) {
+        APP_LOGS.info(
+          'No server sync needed - kiosk already registered or not pending',
+        );
+        return {
+          "success": true,
+          "message": "no_sync_needed",
+          "kiosk_id": currentKioskId,
+        };
+      }
+
+      APP_LOGS.info('Retrying server sync for kiosk with temporary ID');
+
+      // Get stored kiosk data
+      final kioskName = globalAppConfig["kiosk_info"]?["kiosk_name"];
+      final location = globalAppConfig["kiosk_info"]?["location"];
+      final encryptedPassword =
+          globalAppConfig["kiosk_info"]?["kiosk_password"];
+
+      if (kioskName == null || location == null || encryptedPassword == null) {
+        throw Exception('Missing required kiosk data for server sync');
+      }
+
+      // Decrypt password for server sync
+      final decryptedPassword = await EncryptService().decryptPassword(
+        encryptedPassword,
+      );
+      if (decryptedPassword == null || decryptedPassword == false) {
+        throw Exception('Failed to decrypt stored password');
+      }
+
+      // Create password hash for server (SHA-256)
+      String serverPasswordHash = EncryptService().encryptPasswordForServer(
+        decryptedPassword,
+      );
+
+      // Register kiosk with server
+      final apiService = KioskApiService();
+      final serverResult = await apiService.registerKioskWithPassword(
+        name: kioskName,
+        location: location,
+        password: serverPasswordHash,
+      );
+
+      String kioskId = serverResult["kiosk_id"] ?? "";
+      String kioskKey = serverResult["kiosk_key"] ?? "";
+
+      if (kioskId.isEmpty || kioskKey.isEmpty) {
+        throw Exception('Server returned empty credentials');
+      }
+
+      // Update local config with server credentials
+      globalAppConfig["kiosk_info"]?["kiosk_id"] = kioskId;
+      globalAppConfig["kiosk_info"]?["kiosk_key"] = kioskKey;
+      globalAppConfig["kiosk_info"]?["registered"] = true;
+      globalAppConfig["kiosk_info"]?["sync_pending"] = false;
+
+      // Update timestamp
+      globalAppConfig["kiosk_info"]?["last_sync"] =
+          DateTime.now().toIso8601String();
+
+      // Save updated config
+      final updateConfig = await ConfigService.updateConfig();
+      if (!updateConfig) {
+        APP_LOGS.error('Failed to update config with server credentials');
+        throw Exception('Failed to update local config');
+      }
+
+      APP_LOGS.info(
+        'Server sync completed successfully with kiosk ID: $kioskId',
+      );
+      return {
+        "success": true,
+        "message": "sync_success",
+        "kiosk_id": kioskId,
+        "kiosk_key": kioskKey,
+      };
+    } catch (e, stack) {
+      APP_LOGS.error('Server sync retry failed', e, stack);
+      return {
+        "success": false,
+        "message": "sync_failed",
+        "details": e.toString(),
+      };
+    }
+  }
+
+  /// [080725] Check if kiosk needs server sync (has temporary ID)
+  static bool needsServerSync() {
+    final currentKioskId = globalAppConfig["kiosk_info"]?["kiosk_id"];
+    final syncPending = globalAppConfig["kiosk_info"]?["sync_pending"] ?? false;
+    return currentKioskId == "TMPKIOSK" && syncPending;
+  }
+
+  /// [080725] Get kiosk sync status information
+  static Map<String, dynamic> getSyncStatus() {
+    final currentKioskId = globalAppConfig["kiosk_info"]?["kiosk_id"];
+    final syncPending = globalAppConfig["kiosk_info"]?["sync_pending"] ?? false;
+    final registered = globalAppConfig["kiosk_info"]?["registered"] ?? false;
+
+    return {
+      "kiosk_id": currentKioskId,
+      "sync_pending": syncPending,
+      "registered": registered,
+      "needs_sync": needsServerSync(),
+    };
+  }
 }
 
 class EncryptService {
@@ -238,9 +429,9 @@ class EncryptService {
     return digest.toString();
   }
 
-  // [050725] Retrieves the encryption key from secure storage or creates a new one.
-  /// This key is used for AES encryption and decryption of sensitive data.
-  Future<String> getOrCreateEncryptionKey() async {
+  /// [070725] Retrieves the encryption key string from secure storage or creates a new one.
+  /// This is a private helper method.
+  Future<String> _getOrCreateEncryptionKeyString() async {
     String? key = await secureStorage.read(key: keyName);
 
     if (key == null) {
@@ -253,9 +444,10 @@ class EncryptService {
     return key;
   }
 
-  /// [050725] Retrieves the encryption key from secure storage or creates a new one.
+  /// [070725] Retrieves the encryption key as a Key object for use with the encrypt package.
   Future<encrypt.Key> getEncryptionKey() async {
-    final keyString = await EncryptService().getOrCreateEncryptionKey();
+    // Correctly call the helper method on the current instance.
+    final keyString = await _getOrCreateEncryptionKeyString();
     return encrypt.Key.fromBase64(keyString);
   }
 
@@ -280,14 +472,21 @@ class EncryptService {
     try {
       final key = await getEncryptionKey();
       final bytes = base64Decode(encryptedStr);
+
+      if (bytes.length < 16) {
+        APP_LOGS.error('Decryption failed: input is too short to be valid.');
+        return null;
+      }
+
       final iv = encrypt.IV(bytes.sublist(0, 16));
       final encryptedBytes = bytes.sublist(16);
       final encrypter = encrypt.Encrypter(encrypt.AES(key));
+
       final decrypted = encrypter.decrypt(
         encrypt.Encrypted(encryptedBytes),
         iv: iv,
       );
-      if (targetPassword.isNotEmpty) {
+      if (targetPassword.isNotEmpty || targetPassword != "") {
         // Compare the decrypted password with the target password
         return decrypted == targetPassword;
       }

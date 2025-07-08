@@ -28,11 +28,10 @@ Future<void> runAppInitializations() async {
       await ConfigService.initializeConfig(); // Initialize app_config.json first
   themeNotifier.value = globalAppConfig["userPreferences"]["theme"] ?? "light";
 
+  await EncryptService().getEncryptionKey(); // Ensures key is generated/stored
   // Initialize Database
   DBNAME = 'app.db';
   DB = await DatabaseConnection.getDatabase(dbName: DBNAME);
-  await EncryptService()
-      .getOrCreateEncryptionKey(); // Ensures key is generated/stored
   EMPQUERY = EmployeeQuery(db: DB, logs: APP_LOGS);
   await EMPQUERY.initialize();
   inventory = await InventoryServices().initialize();

@@ -7,16 +7,19 @@ import '../../services/analytics/analytics.dart';
 import '../../services/server/kiosk_server.dart';
 
 import '../../components/toastmsg.dart';
+import '../../components/image.dart';
 
 // [010725] Employee Account Section
 class EmployeeAccountSection extends StatefulWidget {
   final ThemeData theme;
   final Color mainColor;
+  final LoggingService LOGS;
 
   const EmployeeAccountSection({
     super.key,
     required this.theme,
     required this.mainColor,
+    required this.LOGS,
   });
 
   @override
@@ -25,19 +28,30 @@ class EmployeeAccountSection extends StatefulWidget {
 
 class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
   Map<String, Map<String, dynamic>> employees = {};
+  late LoggingService LOGS;
+  late KioskApiService apiService;
 
   @override
   void initState() {
     super.initState();
+    LOGS = widget.LOGS;
+    apiService = KioskApiService();
     _loadEmployees();
   }
 
   Future<void> _loadEmployees() async {
-    // Ensure EMPQUERY is properly initialized
-    await EMPQUERY.initialize();
+    // Ensure EMPQUERY is properly initialized and force refresh from database
+    await EMPQUERY.initialize(forceRefresh: true);
     setState(() {
-      employees = EMPQUERY.employees;
+      // Get only active employees for display (exist == 1 or "1")
+      employees = Map.from(EMPQUERY.employees)..removeWhere(
+        (key, value) => value['exist'] != 1 && value['exist'] != "1",
+      );
     });
+
+    LOGS.debug(
+      'Loading employees - current cache size: ${EMPQUERY.employees.length}',
+    );
   }
 
   // [02072025] [Employee Attendance Detail Dialog]
@@ -457,13 +471,9 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
     final TextEditingController passwordController = TextEditingController(
       text: empID > 0 ? '' : EncryptService().generateStrongPassword(6),
     );
-    bool exist =
-        employee == null
-            ? true
-            : (employee['exist'] is int
-                ? employee['exist'] == 1
-                : (employee['exist'] ?? true));
+
     Uint8List? imageBytes;
+
     if (employee != null && employee['image'] != null) {
       if (employee['image'] is Uint8List) {
         imageBytes = employee['image'] as Uint8List;
@@ -483,6 +493,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
       final picked = await picker.pickImage(source: ImageSource.gallery);
       if (picked != null) {
         imageBytes = await picked.readAsBytes();
+        imageBytes = await resizeImage(source: imageBytes);
       }
     }
 
@@ -852,8 +863,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                     'password':
                                                         passwordController.text,
                                                     'exist': 1,
-                                                    'image':
-                                                        imageBytes?.toList(),
+                                                    'image': imageBytes,
                                                   };
 
                                                   // Only add ID and username for updates (empID > 0 means editing existing employee)
@@ -867,7 +877,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                         usernameController.text;
                                                   }
 
-                                                  APP_LOGS.info(
+                                                  LOGS.info(
                                                     '${isUpdate ? "Updating" : "Adding"} employee: ${newEmployee['name']}, empID: $empID',
                                                   );
 
@@ -937,7 +947,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                           null) {
                                                         newEmployee['username'] =
                                                             serverAssignedUsername;
-                                                        APP_LOGS.info(
+                                                        LOGS.info(
                                                           'Server assigned username: $serverAssignedUsername',
                                                         );
                                                       } else {
@@ -946,7 +956,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                         );
                                                       }
                                                     } catch (e) {
-                                                      APP_LOGS.warning(
+                                                      LOGS.warning(
                                                         'Failed to sync with server first: $e. Saving locally with temp username.',
                                                       ); // Generate temporary username for local storage based on employee count
                                                       int empCount =
@@ -977,7 +987,13 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                             newEmployee,
                                                           );
 
-                                                  APP_LOGS.info(
+                                                  if (!checkTransfer) {
+                                                    throw Exception(
+                                                      "Failed to save employee locally",
+                                                    );
+                                                  }
+
+                                                  LOGS.info(
                                                     'Local DB save result: $checkTransfer',
                                                   );
 
@@ -1035,17 +1051,31 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                         isAdmin: false,
                                                       );
 
-                                                      final apiService =
-                                                          KioskApiService();
-                                                      await apiService
-                                                          .addEmployee(
-                                                            employeeData,
-                                                          );
-                                                      APP_LOGS.info(
-                                                        'Server sync successful for update',
-                                                      );
+                                                      // Use appropriate API method based on whether it's an update or new employee
+                                                      if (isUpdate &&
+                                                          usernameController
+                                                              .text
+                                                              .isNotEmpty) {
+                                                        await apiService
+                                                            .updateEmployee(
+                                                              usernameController
+                                                                  .text,
+                                                              employeeData,
+                                                            );
+                                                        LOGS.info(
+                                                          'Server sync successful for employee update (Username: ${usernameController.text})',
+                                                        );
+                                                      } else {
+                                                        await apiService
+                                                            .addEmployee(
+                                                              employeeData,
+                                                            );
+                                                        LOGS.info(
+                                                          'Server sync successful for new employee',
+                                                        );
+                                                      }
                                                     } catch (e) {
-                                                      APP_LOGS.warning(
+                                                      LOGS.warning(
                                                         'Failed to sync employee update with server: $e. Changes saved locally only.',
                                                       );
                                                       showToastMessage(
@@ -1113,15 +1143,13 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                   Navigator.of(context).pop();
                                                 } catch (e) {
                                                   // Handle errors
-                                                  APP_LOGS.error(
+                                                  LOGS.error(
                                                     'Error saving employee: $e',
                                                   );
                                                   showToastMessage(
                                                     context,
-                                                    LOCALIZATION.localize(
-                                                          'main_word.error_occurred',
-                                                        ) ??
-                                                        "An error occurred",
+                                                    "${LOCALIZATION.localize('main_word.error_occurred')}: ${e.toString()}" ??
+                                                        "An error occurred: ${e.toString()}",
                                                     ToastLevel.error,
                                                   );
 
@@ -1203,7 +1231,12 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                 children: [
                   Icon(Icons.check_circle, color: Colors.green, size: 28),
                   const SizedBox(width: 12),
-                  Text("Employee Created Successfully"),
+                  Text(
+                    LOCALIZATION.localize(
+                          'more_page.employee_created_success',
+                        ) ??
+                        "Employee Created Successfully",
+                  ),
                 ],
               ),
               content: Column(
@@ -1211,7 +1244,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Employee '$name' has been created successfully!",
+                    "Employee '$name'${LOCALIZATION.localize('more_page.employee_created_success')}",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 20),
@@ -1312,8 +1345,12 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                   ),
                   const SizedBox(height: 16),
 
+                  // Sync status important note
                   Text(
-                    "⚠️ Please save these credentials securely. The employee will need them to login.",
+                    LOCALIZATION.localize(
+                          'more_page.sync_status_important_note',
+                        ) ??
+                        "⚠️ Please save these credentials securely. The employee will need them to login.",
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.orange.shade700,
@@ -1393,7 +1430,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
       );
 
       // Sync with server
-      final apiService = KioskApiService();
+
       final serverResponse = await apiService.addEmployee(employeeData);
 
       // Extract username from server response
@@ -1408,23 +1445,26 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
         await EMPQUERY.upsertEmployee(updatedEmployee);
         await _loadEmployees();
 
+        String empPassword = await EncryptService().decryptPassword(
+          emp['password'],
+        );
         // Show success dialog with new credentials
         await showEmployeeCreatedDialog(
           context,
           serverAssignedUsername,
-          emp['password'] ?? '',
+          empPassword ?? '',
           emp['name'] ?? '',
           mainColor,
         );
 
-        APP_LOGS.info(
+        LOGS.info(
           'Successfully synced employee with server, new username: $serverAssignedUsername',
         );
       } else {
         throw Exception("Server did not return username");
       }
     } catch (e) {
-      APP_LOGS.error('Failed to retry sync employee: $e');
+      LOGS.error('Failed to retry sync employee: $e');
       showToastMessage(
         context,
         "Failed to sync with server: $e",
@@ -1437,9 +1477,6 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final mainColor = widget.mainColor;
-    // Replace all setState(() { employees = EMPQUERY.employees; }); with setState(() { employees = EMPQUERY.employees; });
-    // Replace calls to showAddAdjustEmployeeDialog with this.showAddAdjustEmployeeDialog
-    // Remove the outer Padding if you want to control padding from parent
 
     return Padding(
       key: const ValueKey('employeeAccount'),
@@ -1527,14 +1564,13 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                       ),
                     )
                   else
-                    ...employees.entries.where((entry) => entry.value["exist"] == 1).map((
-                      entry,
-                    ) {
+                    ...employees.entries.map((entry) {
                       final String empId = entry.key;
                       final Map<String, dynamic> emp = entry.value;
 
                       // Iterate over the values of the map
-                      final bool isActive = emp["exist"] == 1;
+                      final bool isActive =
+                          emp["exist"] == 1 || emp["exist"] == "1";
                       final Color itemStatusColor =
                           isActive ? Colors.green : Colors.grey;
                       // Assuming emp["image"] is List<int> (from database) or null
@@ -1789,8 +1825,29 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                     );
 
                                     if (confirmed == true) {
+                                      await apiService.updateEmployee(
+                                        emp["username"],
+                                        EmployeeData(
+                                          kioskId: emp["kiosk_id"] ?? "",
+                                          id: int.parse(empId),
+                                          username: emp["username"],
+                                          name: emp["name"] ?? "",
+                                          age: emp["age"] ?? 0,
+                                          address: emp["address"] ?? "",
+                                          phoneNumber:
+                                              emp["phone_number"] ?? "",
+                                          email: emp["email"] ?? "",
+                                          description: emp["description"] ?? "",
+                                          password: emp['password'] ?? '',
+                                          exist: false, // Mark as deleted
+                                          image: emp['image'],
+                                          isAdmin: false,
+                                        ),
+                                      );
+
                                       final checkDelete = await EMPQUERY
                                           .deleteEmployee(empId);
+
                                       if (checkDelete) {
                                         await _loadEmployees();
                                         showToastMessage(
@@ -1956,6 +2013,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                         "Copy",
                                                   ),
                                                 ),
+
                                                 TextButton(
                                                   onPressed:
                                                       () =>

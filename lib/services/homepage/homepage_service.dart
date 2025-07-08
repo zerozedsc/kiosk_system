@@ -3,7 +3,7 @@ import '../../configs/configs.dart';
 import '../database/db.dart';
 import '../analytics/analytics.dart';
 
-import '../../components/toastmsg.dart';
+import '../server/kiosk_server.dart';
 
 // ignore: non_constant_identifier_names
 late LoggingService HOMEPAGE_LOGS;
@@ -114,6 +114,7 @@ class HomepageService {
       }
 
       final String employeeId = attendanceData['id'].toString();
+      final String username = attendanceData['username'] ?? "";
       final String date = attendanceData['date'].toString();
 
       // Always check for BOTH employee_id AND date!
@@ -144,6 +145,7 @@ class HomepageService {
                       existingRecord['total_hour']?.toString() ?? '',
                     ) ??
                     0.0;
+        totalHour = double.parse(totalHour.toStringAsFixed(3));
 
         if (clockInToSave != "" && newClockOut != "") {
           try {
@@ -172,13 +174,17 @@ class HomepageService {
             return "total_hour_calculation_error";
           }
         }
+        bool checkTotalHour = clockInToSave != "" && newClockOut != "";
 
         await dbQuery.updateData('employee_attendance', existingRecord['id'], {
           'clock_in': clockInToSave,
           if (newClockOut != "") 'clock_out': newClockOut,
-          if (clockInToSave != "" && newClockOut != "")
-            'total_hour': double.parse(totalHour.toStringAsFixed(3)),
+          if (checkTotalHour) 'total_hour': totalHour,
         });
+
+        if (checkTotalHour && username.isNotEmpty) {
+          await KioskApiService().clockOutEmployee(username, totalHour);
+        }
 
         HOMEPAGE_LOGS.info(
           'Attendance updated for employee_id: $employeeId, date: $date',
@@ -193,6 +199,8 @@ class HomepageService {
           'clock_out': attendanceData['clock_out'] ?? "",
           'total_hour': attendanceData['total_hour'] ?? 0.0,
         });
+
+        await KioskApiService().clockInEmployee(username);
         HOMEPAGE_LOGS.info(
           'Attendance inserted for employee_id: $employeeId, date: $date',
         );

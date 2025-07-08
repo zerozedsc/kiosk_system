@@ -851,56 +851,53 @@ class EmployeeQuery {
   /// - activeOnly (bool): filter only active employees
   ///
   /// Returns a map of employee data
-  Future<void> initialize() async {
-    employees = await getEmployeeData(employeeMap: employees, logs: logs);
-  }
-
-  /// Get employee data, optionally force refresh or filter active only
-  Future<Map<String, Map<String, dynamic>>> getEmployeeData({
-    Map<String, Map<String, dynamic>> employeeMap = const {},
-    bool forceRefresh = false,
-    bool activeOnly = true,
-    LoggingService? logs,
-  }) async {
+  Future<void> initialize({bool forceRefresh = false}) async {
     try {
-      // If already cached and not forced, return as map
-      if (employeeMap.isNotEmpty && !forceRefresh) {
-        if (activeOnly) {
-          // Filter only active employees (exist == 1)
-          return {
-            for (var entry in employeeMap.entries)
-              if (entry.value['exist'] == 1) entry.key: entry.value,
-          };
-        }
-        return employeeMap;
-      }
-
-      // Query database for all employee data
-      final DatabaseQuery dbQuery = DatabaseQuery(db: db, LOGS: logs!);
+      // Always fetch all employees and cache them
+      final DatabaseQuery dbQuery = DatabaseQuery(db: db, LOGS: logs);
 
       final List<Map<String, dynamic>> fetchedData = await dbQuery.fetchAllData(
         'employee_info',
       );
 
-      // Cache as map
-      employeeMap = {
+      // Cache ALL employees (not just active ones)
+      employees = {
         for (var employee in fetchedData)
           employee['id'].toString(): {...employee}..remove('id'),
       };
-      totalEmployees = employeeMap.length;
+      totalEmployees = employees.length;
+
       logs.info(
-        'Successfully retrieved ${fetchedData.length} employee records',
+        'Successfully initialized ${fetchedData.length} employee records in cache',
       );
+    } catch (e, stackTrace) {
+      logs.error('Failed to initialize employee data', e, stackTrace);
+      employees = {};
+    }
+  }
+
+  /// Get employee data, optionally force refresh or filter active only
+  Future<Map<String, Map<String, dynamic>>> getEmployeeData({
+    bool forceRefresh = false,
+    bool activeOnly = true,
+  }) async {
+    try {
+      // If cache is empty or force refresh, initialize first
+      if (employees.isEmpty || forceRefresh) {
+        await initialize(forceRefresh: forceRefresh);
+      }
 
       if (activeOnly) {
+        // Filter only active employees (exist == 1 or "1")
         return {
-          for (var entry in employeeMap.entries)
-            if (entry.value['exist'] == 1) entry.key: entry.value,
+          for (var entry in employees.entries)
+            if (entry.value['exist'] == 1 || entry.value['exist'] == "1")
+              entry.key: entry.value,
         };
       }
-      return employeeMap;
+      return employees;
     } catch (e, stackTrace) {
-      logs?.error('Failed to retrieve employee data', e, stackTrace);
+      logs.error('Failed to retrieve employee data', e, stackTrace);
       return {};
     }
   }
@@ -937,7 +934,7 @@ class EmployeeQuery {
         if (await dbQuery.updateData('employee_info', int.parse(id), newData)) {
           logs.info('Updated employee with id $id');
           // Manually update the employees map
-          employees[id!] = {...employees[id]!, ...newData};
+          employees[id] = {...employees[id]!, ...newData};
         } else {
           logs.error('Failed to update employee with id $id');
           return false;

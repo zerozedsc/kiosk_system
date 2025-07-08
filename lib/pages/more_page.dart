@@ -215,7 +215,11 @@ class _MorePageState extends State<MorePage> {
       case MorePageSection.appSettings:
         return _buildAppSettings(theme, mainColor);
       case MorePageSection.employeeAccount:
-        return EmployeeAccountSection(theme: theme, mainColor: mainColor);
+        return EmployeeAccountSection(
+          theme: theme,
+          mainColor: mainColor,
+          LOGS: MOREPAGE_LOGS,
+        );
       case MorePageSection.kioskInfo:
         return _buildKioskInfo(theme, mainColor);
       case MorePageSection.connection:

@@ -2,6 +2,32 @@ import '../../configs/configs.dart';
 import '../notification/enhanced_notification_service.dart';
 import 'kiosk_server.dart';
 
+/// [080725] Global function for emergency data saving (can run in isolate)
+Future<void> _saveQueueData(Map<String, dynamic> data) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Save operations
+    if (data['operations'] != null) {
+      await prefs.setString(
+        'offline_operations_queue',
+        jsonEncode(data['operations']),
+      );
+    }
+
+    // Save notifications
+    if (data['notifications'] != null) {
+      await prefs.setString(
+        'failure_notifications',
+        jsonEncode(data['notifications']),
+      );
+    }
+  } catch (e) {
+    // Silent fail in isolate
+    print('Emergency save failed: $e');
+  }
+}
+
 /// Enum for different types of operations that can be queued
 enum OperationType { get, post, put, delete }
 
@@ -474,5 +500,61 @@ class OfflineQueueManager {
     _connectivityController.close();
     _queueSizeController.close();
     SERVER_LOGS.info('🔚 OfflineQueueManager disposed');
+  }
+
+  /// [080725] Enhanced persistence - force save queue immediately
+  /// Call this before app termination or during critical operations
+  Future<void> forceDataPersistence() async {
+    SERVER_LOGS.info('💾 Forcing data persistence...');
+
+    try {
+      await _saveQueueToStorage();
+      await _saveFailureNotificationsToStorage();
+
+      SERVER_LOGS.info(
+        '✅ Force persistence complete: ${_operationQueue.length} operations, ${_failureNotifications.length} notifications saved',
+      );
+    } catch (e) {
+      SERVER_LOGS.error('❌ Force persistence failed: $e');
+    }
+  }
+
+  /// [080725] Handle app lifecycle events
+  /// Call this from your main app when lifecycle changes occur
+  Future<void> handleAppLifecycleChange(AppLifecycleState state) async {
+    switch (state) {
+      case AppLifecycleState.paused:
+        SERVER_LOGS.info('📱 App paused - saving queue data');
+        await forceDataPersistence();
+        break;
+      case AppLifecycleState.resumed:
+        SERVER_LOGS.info('📱 App resumed - reloading queue data');
+        await _loadQueueFromStorage();
+        await _loadFailureNotifications();
+        break;
+      case AppLifecycleState.detached:
+        SERVER_LOGS.info('📱 App detached - final data save');
+        await forceDataPersistence();
+        _retryTimer?.cancel();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// [080725] Helper method to save failure notifications
+  Future<void> _saveFailureNotificationsToStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _failureNotificationKey,
+        jsonEncode(_failureNotifications),
+      );
+      SERVER_LOGS.debug(
+        '💾 Saved ${_failureNotifications.length} failure notifications',
+      );
+    } catch (e) {
+      SERVER_LOGS.error('❌ Error saving failure notifications: $e');
+    }
   }
 }

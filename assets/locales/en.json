@@ -194,5 +194,8 @@
         "device_details": "Device Details",
         "open_drawer": "Open Drawer",
         "connection_failed": "Failed to connect to device"
+    },
+    "more_page": {
+        "sync_status_important_note": "⚠️ Please save these credentials securely. The employee will need them to login."
     }
 }

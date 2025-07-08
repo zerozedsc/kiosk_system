@@ -11,7 +11,10 @@ flutter run --dart-define-from-file=SECRETS.json
 # For building a release version
 flutter build apk --dart-define-from-file=SECRETS.json
 
-z2Bf1Q
+5fhe7H
+
+emp: s2a1JO
+Y1vbsd
 
 ALTER TABLE employee_info AUTO_INCREMENT = 1;
 ALTER TABLE kiosk_info AUTO_INCREMENT = 1;

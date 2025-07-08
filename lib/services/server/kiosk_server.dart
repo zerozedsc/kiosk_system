@@ -1,188 +1,12 @@
 import '../../configs/configs.dart';
 import 'package:http/http.dart' as http;
 import 'offline_queue_manager.dart';
+import 'package:intl/intl.dart';
+
 import '../connection/internet.dart';
 
-/// [050725] KioskData
-class KioskData {
-  final String name;
-  final String location;
-  final String? description;
-
-  KioskData({required this.name, required this.location, this.description});
-
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'location': location,
-    if (description != null) 'description': description,
-  };
-
-  @override
-  String toString() =>
-      'KioskData(name: $name, location: $location, description: $description)';
-}
-
-class ProductData {
-  final String name;
-  final double price;
-  final String? description;
-  final String? category;
-
-  ProductData({
-    required this.name,
-    required this.price,
-    this.description,
-    this.category,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'price': price,
-    if (description != null) 'description': description,
-    if (category != null) 'category': category,
-  };
-
-  @override
-  String toString() =>
-      'ProductData(name: $name, price: $price, description: $description, category: $category)';
-}
-
-/// [050725] EmployeeData
-class EmployeeData {
-  final int? id;
-  final String kioskId;
-  final String username;
-  final String name;
-  final int age;
-  final String? address;
-  final String? phoneNumber;
-  final String? email;
-  final String? description;
-  final String password;
-  final bool exist;
-  final bool isAdmin;
-  final Uint8List?
-  image; // BLOB data as bytes (equivalent to LargeBinary in Python)
-  final DateTime? createdAt;
-
-  EmployeeData({
-    this.id,
-    required this.kioskId,
-    required this.username,
-    required this.name,
-    required this.age,
-    this.address,
-    this.phoneNumber,
-    this.email,
-    this.description,
-    required this.password,
-    required this.exist,
-    required this.isAdmin,
-    this.image,
-    this.createdAt,
-  });
-
-  Map<String, dynamic> toJson() => {
-    if (id != null) 'id': id,
-    'kiosk_id': kioskId,
-    'username': username,
-    'name': name,
-    'age': age,
-    if (address != null) 'address': address,
-    if (phoneNumber != null) 'phone_number': phoneNumber,
-    if (email != null) 'email': email,
-    if (description != null) 'description': description,
-    'password': password,
-    'exist': exist,
-    'is_admin': isAdmin,
-    if (image != null) 'image': image, // Send as bytes or base64 if needed
-    if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
-  };
-
-  @override
-  String toString() =>
-      'EmployeeData(id: $id, kioskId: $kioskId, username: $username, name: $name, age: $age, address: $address, phoneNumber: $phoneNumber, email: $email, description: $description, password: [REDACTED], exist: $exist, isAdmin: $isAdmin, image: ${image != null}, createdAt: $createdAt)';
-}
-
-/// [050725] TransactionData
-class TransactionData {
-  final int productId;
-  final int quantity;
-  final double total;
-  final int? employeeId;
-
-  TransactionData({
-    required this.productId,
-    required this.quantity,
-    required this.total,
-    this.employeeId,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'product_id': productId,
-    'quantity': quantity,
-    'total': total,
-    if (employeeId != null) 'employee_id': employeeId,
-  };
-
-  @override
-  String toString() =>
-      'TransactionData(productId: $productId, quantity: $quantity, total: $total, employeeId: $employeeId)';
-}
-
-/// [050725] AttendanceData
-class AttendanceData {
-  final int employeeId;
-  final DateTime checkIn;
-  final DateTime? checkOut;
-  final String? notes;
-
-  AttendanceData({
-    required this.employeeId,
-    required this.checkIn,
-    this.checkOut,
-    this.notes,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'employee_id': employeeId,
-    'check_in': checkIn.toIso8601String(),
-    if (checkOut != null) 'check_out': checkOut!.toIso8601String(),
-    if (notes != null) 'notes': notes,
-  };
-
-  @override
-  String toString() =>
-      'AttendanceData(employeeId: $employeeId, checkIn: $checkIn, checkOut: $checkOut, notes: $notes)';
-}
-
-class DiscountData {
-  final String name;
-  final double percentage;
-  final String? description;
-  final DateTime? validFrom;
-  final DateTime? validTo;
-
-  DiscountData({
-    required this.name,
-    required this.percentage,
-    this.description,
-    this.validFrom,
-    this.validTo,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'percentage': percentage,
-    if (description != null) 'description': description,
-    if (validFrom != null) 'valid_from': validFrom!.toIso8601String(),
-    if (validTo != null) 'valid_to': validTo!.toIso8601String(),
-  };
-
-  @override
-  String toString() =>
-      'DiscountData(name: $name, percentage: $percentage, description: $description, validFrom: $validFrom, validTo: $validTo)';
-}
+import 'model_server.dart';
+export 'model_server.dart';
 
 /// [050725] InventoryUpdateData
 class InventoryUpdateData {
@@ -509,7 +333,6 @@ class KioskApiService {
     Map<String, dynamic> data,
   ) async {
     SERVER_LOGS.info('📤 Posting to endpoint: $endpoint');
-    SERVER_LOGS.debug('Request data: ${jsonEncode(data)}');
     await checkApiHealth();
 
     try {
@@ -777,7 +600,11 @@ class KioskApiService {
   /// Throws: [ApiException] if the request fails
   Future<List<Map<String, dynamic>>> getEmployees() {
     SERVER_LOGS.info('👥 Getting all employees');
-    return _getList('employees');
+    return _safeApiCall(
+      operationType: OperationType.get,
+      endpoint: 'employees',
+      apiCall: () => _getList('employees'),
+    );
   }
 
   /// Get all transactions from the server.
@@ -801,7 +628,11 @@ class KioskApiService {
   /// Throws: [ApiException] if the request fails
   Future<List<Map<String, dynamic>>> getInventory() {
     SERVER_LOGS.info('📦 Getting all inventory items');
-    return _getList('inventories');
+    return _safeApiCall(
+      operationType: OperationType.get,
+      endpoint: 'inventories',
+      apiCall: () => _getList('inventories'),
+    );
   }
 
   /// Get all attendance records from the server.
@@ -811,7 +642,11 @@ class KioskApiService {
   /// Throws: [ApiException] if the request fails
   Future<List<Map<String, dynamic>>> getAttendances() {
     SERVER_LOGS.info('📅 Getting all attendance records');
-    return _getList('attendances');
+    return _safeApiCall(
+      operationType: OperationType.get,
+      endpoint: 'attendances',
+      apiCall: () => _getList('attendances'),
+    );
   }
 
   /// Get all discounts from the server.
@@ -821,7 +656,11 @@ class KioskApiService {
   /// Throws: [ApiException] if the request fails
   Future<List<Map<String, dynamic>>> getDiscounts() {
     SERVER_LOGS.info('🎫 Getting all discounts');
-    return _getList('discounts');
+    return _safeApiCall(
+      operationType: OperationType.get,
+      endpoint: 'discounts',
+      apiCall: () => _getList('discounts'),
+    );
   }
 
   /// Create a new kiosk.
@@ -916,6 +755,49 @@ class KioskApiService {
     );
   }
 
+  /// Update an existing employee in the system.
+  ///
+  /// Parameters:
+  /// - [username]: The username of the employee to update (e.g., 'RZEMP0001')
+  /// - [employeeData]: EmployeeData object containing updated information
+  ///
+  /// Example:
+  /// ```dart
+  /// final updatedEmployee = EmployeeData(
+  ///   kioskId: 'your-kiosk-id',
+  ///   username: 'RZEMP0001',
+  ///   name: 'John Doe Updated',
+  ///   age: 26,
+  ///   password: 'new_hashed_password',
+  ///   exist: true,
+  ///   isAdmin: false,
+  ///   address: '456 New St',
+  ///   phoneNumber: '555-5678',
+  ///   email: 'john.updated@example.com',
+  ///   description: 'Senior cashier - updated',
+  ///   image: updatedImageBytes,
+  /// );
+  /// await apiService.updateEmployee('RZEMP0001', updatedEmployee);
+  /// ```
+  ///
+  /// Returns: Updated employee data
+  ///
+  /// Throws: [ApiException] if update fails
+  Future<Map<String, dynamic>> updateEmployee(
+    String username,
+    EmployeeData employeeData,
+  ) {
+    SERVER_LOGS.info(
+      '🔄 Updating employee: $username with data: $employeeData',
+    );
+    return _safeApiCall(
+      operationType: OperationType.put,
+      endpoint: 'employees/$username',
+      data: employeeData.toJson(),
+      apiCall: () => _put('employees/$username', employeeData.toJson()),
+    );
+  }
+
   /// Create a new transaction record.
   ///
   /// Parameters:
@@ -967,7 +849,12 @@ class KioskApiService {
   /// Throws: [ApiException] if creation fails
   Future<Map<String, dynamic>> createAttendance(AttendanceData attendanceData) {
     SERVER_LOGS.info('➕ Creating new attendance: $attendanceData');
-    return _post('attendances', attendanceData.toJson());
+    return _safeApiCall(
+      operationType: OperationType.post,
+      endpoint: 'attendances',
+      data: attendanceData.toJson(),
+      apiCall: () => _post('attendances', attendanceData.toJson()),
+    );
   }
 
   /// Create a new discount.
@@ -1064,11 +951,11 @@ class KioskApiService {
   /// Get the direct image URL for an employee.
   ///
   /// Parameters:
-  /// - [employeeId]: The ID of the employee
+  /// - [username]: The username of the employee (e.g., 'RZEMP0001')
   ///
   /// Returns: Complete URL string for the employee image
-  String getEmployeeImageUrl(int employeeId) {
-    final url = '$baseUrl/employees/$employeeId/image';
+  String getEmployeeImageUrl(String username) {
+    final url = '$baseUrl/employees/$username/image';
     SERVER_LOGS.debug('🖼️ Generated employee image URL: $url');
     return url;
   }
@@ -1242,7 +1129,12 @@ class KioskApiService {
           if (operation.endpoint.contains('/') &&
               (operation.endpoint.contains('kiosks/') ||
                   operation.endpoint.contains('products/') ||
-                  operation.endpoint.contains('employees/'))) {
+                  operation.endpoint.contains('employees/') ||
+                  operation.endpoint.contains('attendances/') ||
+                  operation.endpoint.contains('transactions/') ||
+                  operation.endpoint.contains('inventories/') ||
+                  operation.endpoint.contains('sets/') ||
+                  operation.endpoint.contains('discounts/'))) {
             // Single item GET
             await _getSingleDirect(operation.endpoint);
           } else {
@@ -1353,6 +1245,353 @@ class KioskApiService {
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw ApiException('Failed to delete $endpoint', response.statusCode);
     }
+  }
+
+  /// Get a specific employee by username.
+  ///
+  /// Parameters:
+  /// - [username]: The username of the employee to retrieve (e.g., 'RZEMP0001')
+  ///
+  /// Example:
+  /// ```dart
+  /// final employee = await apiService.getEmployee('RZEMP0001');
+  /// ```
+  ///
+  /// Returns: Employee data or null if not found
+  ///
+  /// Throws: [ApiException] if the request fails
+  Future<Map<String, dynamic>?> getEmployee(String username) {
+    SERVER_LOGS.info('👤 Getting employee: $username');
+    return _safeApiCall(
+      operationType: OperationType.get,
+      endpoint: 'employees/$username',
+      apiCall: () => _getSingle('employees/$username'),
+    );
+  }
+
+  /// Delete an employee from the system.
+  ///
+  /// Parameters:
+  /// - [username]: The username of the employee to delete (e.g., 'RZEMP0001')
+  ///
+  /// Example:
+  /// ```dart
+  /// await apiService.deleteEmployee('RZEMP0001');
+  /// ```
+  ///
+  /// Returns: true if deletion was successful
+  ///
+  /// Throws: [ApiException] if deletion fails
+  Future<bool> deleteEmployee(String username) async {
+    SERVER_LOGS.info('🗑️ Deleting employee: $username');
+    try {
+      await _safeApiCall(
+        operationType: OperationType.delete,
+        endpoint: 'employees/$username',
+        apiCall: () => _delete('employees/$username'),
+      );
+      return true;
+    } catch (e) {
+      SERVER_LOGS.error('Failed to delete employee $username: $e');
+      return false;
+    }
+  }
+
+  /// Upload an employee image using base64 encoding.
+  ///
+  /// Parameters:
+  /// - [username]: The username of the employee (e.g., 'RZEMP0001')
+  /// - [imageFile]: The image file to upload
+  ///
+  /// Example:
+  /// ```dart
+  /// final success = await apiService.uploadEmployeeImage('RZEMP0001', imageFile);
+  /// ```
+  ///
+  /// Returns: true if upload was successful
+  ///
+  /// Throws: [ApiException] if upload fails
+  Future<bool> uploadEmployeeImage(String username, File imageFile) async {
+    SERVER_LOGS.info('📸 Uploading image for employee: $username');
+    try {
+      final bytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      await _safeApiCall(
+        operationType: OperationType.post,
+        endpoint: 'employees/$username/image',
+        data: {'image': base64Image},
+        apiCall:
+            () => _post('employees/$username/image', {'image': base64Image}),
+      );
+      return true;
+    } catch (e) {
+      SERVER_LOGS.error('Failed to upload image for employee $username: $e');
+      return false;
+    }
+  }
+
+  /// Delete an employee image.
+  ///
+  /// Parameters:
+  /// - [username]: The username of the employee (e.g., 'RZEMP0001')
+  ///
+  /// Example:
+  /// ```dart
+  /// await apiService.deleteEmployeeImage('RZEMP0001');
+  /// ```
+  ///
+  /// Returns: true if deletion was successful
+  ///
+  /// Throws: [ApiException] if deletion fails
+  Future<bool> deleteEmployeeImage(String username) async {
+    SERVER_LOGS.info('🗑️ Deleting image for employee: $username');
+    try {
+      await _safeApiCall(
+        operationType: OperationType.delete,
+        endpoint: 'employees/$username/image',
+        apiCall: () => _delete('employees/$username/image'),
+      );
+      return true;
+    } catch (e) {
+      SERVER_LOGS.error('Failed to delete image for employee $username: $e');
+      return false;
+    }
+  }
+
+  /// Get a specific attendance record by ID.
+  ///
+  /// Parameters:
+  /// - [id]: The ID of the attendance record to retrieve
+  ///
+  /// Example:
+  /// ```dart
+  /// final attendance = await apiService.getAttendance(1);
+  /// ```
+  ///
+  /// Returns: Attendance record data or null if not found
+  ///
+  /// Throws: [ApiException] if the request fails
+  Future<Map<String, dynamic>?> getAttendance(int id) {
+    SERVER_LOGS.info('📅 Getting attendance record: $id');
+    return _safeApiCall(
+      operationType: OperationType.get,
+      endpoint: 'attendances/$id',
+      apiCall: () => _getSingle('attendances/$id'),
+    );
+  }
+
+  /// Get attendance record for a specific employee on a specific date.
+  ///
+  /// Parameters:
+  /// - [username]: The username of the employee (e.g., 'RZEMP0001')
+  /// - [date]: The date in YYYY-MM-DD format (e.g., '2025-01-15')
+  ///
+  /// Example:
+  /// ```dart
+  /// final attendance = await apiService.getAttendanceByDate('RZEMP0001', '2025-01-15');
+  /// ```
+  ///
+  /// Returns: Attendance record data for the specified date, or null if not found
+  ///
+  /// Throws: [ApiException] if the request fails
+  Future<Map<String, dynamic>?> getAttendanceByDate(
+    String username,
+    String date,
+  ) {
+    SERVER_LOGS.info(
+      '📅 Getting attendance for employee: $username on date: $date',
+    );
+    return _safeApiCall(
+      operationType: OperationType.get,
+      endpoint: 'attendances/$username/$date',
+      apiCall: () => _getSingle('attendances/$username/$date'),
+    );
+  }
+
+  /// Update an existing attendance record.
+  ///
+  /// Parameters:
+  /// - [id]: The ID of the attendance record to update
+  /// - [attendanceData]: AttendanceData object with updated information
+  ///
+  /// Example:
+  /// ```dart
+  /// final updatedAttendance = AttendanceData(
+  ///   employeeId: 1,
+  ///   checkIn: DateTime.now().subtract(Duration(hours: 8)),
+  ///   checkOut: DateTime.now(),
+  ///   notes: 'Updated shift end time',
+  /// );
+  /// await apiService.updateAttendance(1, updatedAttendance);
+  /// ```
+  ///
+  /// Returns: Updated attendance data
+  ///
+  /// Throws: [ApiException] if update fails
+  Future<Map<String, dynamic>> updateAttendance(
+    int id,
+    AttendanceData attendanceData,
+  ) {
+    SERVER_LOGS.info('✏️ Updating attendance record: $id');
+    return _safeApiCall(
+      operationType: OperationType.put,
+      endpoint: 'attendances/$id',
+      data: attendanceData.toJson(),
+      apiCall: () => _put('attendances/$id', attendanceData.toJson()),
+    );
+  }
+
+  /// Delete an attendance record from the system.
+  ///
+  /// Parameters:
+  /// - [id]: The ID of the attendance record to delete
+  ///
+  /// Example:
+  /// ```dart
+  /// await apiService.deleteAttendance(1);
+  /// ```
+  ///
+  /// Returns: true if deletion was successful
+  ///
+  /// Throws: [ApiException] if deletion fails
+  Future<bool> deleteAttendance(int id) async {
+    SERVER_LOGS.info('🗑️ Deleting attendance record: $id');
+    try {
+      await _safeApiCall(
+        operationType: OperationType.delete,
+        endpoint: 'attendances/$id',
+        apiCall: () => _delete('attendances/$id'),
+      );
+      return true;
+    } catch (e) {
+      SERVER_LOGS.error('Failed to delete attendance record $id: $e');
+      return false;
+    }
+  }
+
+  /// Delete attendance record for a specific employee on a specific date.
+  ///
+  /// Parameters:
+  /// - [username]: The username of the employee (e.g., 'RZEMP0001')
+  /// - [date]: The date in YYYY-MM-DD format (e.g., '2025-01-15')
+  ///
+  /// Example:
+  /// ```dart
+  /// await apiService.deleteAttendanceByDate('RZEMP0001', '2025-01-15');
+  /// ```
+  ///
+  /// Returns: true if deletion was successful
+  ///
+  /// Throws: [ApiException] if deletion fails
+  Future<bool> deleteAttendanceByDate(String username, String date) async {
+    SERVER_LOGS.info(
+      '🗑️ Deleting attendance for employee: $username on date: $date',
+    );
+    try {
+      await _safeApiCall(
+        operationType: OperationType.delete,
+        endpoint: 'attendances/$username/$date',
+        apiCall: () => _delete('attendances/$username/$date'),
+      );
+      return true;
+    } catch (e) {
+      SERVER_LOGS.error(
+        'Failed to delete attendance for employee $username on date $date: $e',
+      );
+      return false;
+    }
+  }
+
+  /// Clock in an employee.
+  ///
+  /// Parameters:
+  /// - [username]: The username of the employee to clock in (e.g., 'RZEMP0001')
+  ///
+  /// Example:
+  /// ```dart
+  /// final clockInResult = await apiService.clockInEmployee('RZEMP0001');
+  /// ```
+  ///
+  /// Returns: Clock-in result data including attendance record
+  ///
+  /// Throws: [ApiException] if clock-in fails
+  Future<Map<String, dynamic>> clockInEmployee(String username) {
+    SERVER_LOGS.info('🕐 Clocking in employee: $username');
+
+    final now = DateTime.now();
+    final timeString = now.toIso8601String();
+
+    return _safeApiCall(
+      operationType: OperationType.post,
+      endpoint: 'attendances/clock-in',
+      data: {'username': username, 'time': timeString},
+      apiCall:
+          () => _post('attendances/clock-in', {
+            'username': username,
+            'time': timeString,
+          }),
+    );
+  }
+
+  /// Clock out an employee.
+  ///
+  /// Parameters:
+  /// - [username]: The username of the employee to clock out (e.g., 'RZEMP0001')
+  ///
+  /// Example:
+  /// ```dart
+  /// final clockOutResult = await apiService.clockOutEmployee('RZEMP0001');
+  /// ```
+  ///
+  /// Returns: Clock-out result data including updated attendance record
+  ///
+  /// Throws: [ApiException] if clock-out fails
+  Future<Map<String, dynamic>> clockOutEmployee(
+    String username,
+    double totalHours,
+  ) {
+    SERVER_LOGS.info('🕕 Clocking out employee: $username');
+    final now = DateTime.now();
+    final timeString = now.toIso8601String();
+    return _safeApiCall(
+      operationType: OperationType.post,
+      endpoint: 'attendances/clock-out',
+      data: {
+        'username': username,
+        'time': timeString,
+        'total_hours': totalHours,
+      },
+      apiCall:
+          () => _post('attendances/clock-out', {
+            'username': username,
+            'time': timeString,
+            'total_hours': totalHours,
+          }),
+    );
+  }
+
+  /// Get employee attendance status.
+  ///
+  /// Parameters:
+  /// - [username]: The username of the employee to check status for (e.g., 'RZEMP0001')
+  ///
+  /// Example:
+  /// ```dart
+  /// final status = await apiService.getEmployeeAttendanceStatus('RZEMP0001');
+  /// print('Is clocked in: ${status['is_clocked_in']}');
+  /// ```
+  ///
+  /// Returns: Employee attendance status data including current status and last clock-in time
+  ///
+  /// Throws: [ApiException] if the request fails
+  Future<Map<String, dynamic>> getEmployeeAttendanceStatus(String username) {
+    SERVER_LOGS.info('📊 Getting attendance status for employee: $username');
+    return _safeApiCall(
+      operationType: OperationType.get,
+      endpoint: 'attendances/status/$username',
+      apiCall: () => _getSingle('attendances/status/$username'),
+    );
   }
 }
 
