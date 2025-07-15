@@ -52,6 +52,7 @@ class KioskApiService {
     SERVER_LOGS.info('✅ KioskApiService initialized successfully');
   }
 
+  // [Safely execute an API call with error handling and logging]
   /// Checks if the API is reachable and healthy.
   /// Throws [ApiException] if the health check fails.
   Future<void> checkApiHealth() async {
@@ -124,6 +125,7 @@ class KioskApiService {
     }
   }
 
+  // [CRUD Operations]
   /// Get headers with authentication
   Future<Map<String, String>> _getHeaders() async {
     // Get kiosk key from globalAppConfig first, then fall back to SharedPreferences
@@ -147,151 +149,6 @@ class KioskApiService {
     };
     SERVER_LOGS.debug('📄 Generated headers with kiosk key: ✅');
     return headers;
-  }
-
-  /// Register a new kiosk with the server.
-  ///
-  /// Parameters:
-  /// - [name]: Name of the kiosk
-  /// - [location]: Physical location of the kiosk
-  /// - [description]: Optional description for the kiosk
-  ///
-  /// Returns: A map containing both 'kiosk_key' and 'kiosk_id' that should be stored securely
-  ///
-  /// Throws: [ApiException] if registration fails
-  Future<Map<String, String>> registerKiosk({
-    required String name,
-    required String location,
-    String? description,
-  }) async {
-    SERVER_LOGS.info('📝 Registering kiosk: $name at $location');
-    await checkApiHealth();
-
-    final requestBody = {
-      'start_api_key': startApiKey,
-      'name': name,
-      'location': location,
-      'description': description ?? 'Mobile kiosk application',
-    };
-
-    SERVER_LOGS.debug(
-      '📤 Registration request body: ${jsonEncode(requestBody)}',
-    );
-
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/kiosks/register'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(requestBody),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      SERVER_LOGS.debug(
-        '📥 Registration response status: ${response.statusCode}',
-      );
-
-      if (response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        final kioskId = data['kiosk']['kiosk_id'];
-        final kioskKey = data['kiosk_key'];
-
-        SERVER_LOGS.info('✅ Kiosk registered successfully with ID: $kioskId');
-        SERVER_LOGS.debug('🔑 Storing kiosk credentials securely');
-
-        // Store both the key and ID
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('kiosk_key', kioskKey);
-        await prefs.setString('kiosk_id', kioskId);
-
-        SERVER_LOGS.info('💾 Kiosk credentials stored successfully');
-        return {'kiosk_key': kioskKey, 'kiosk_id': kioskId};
-      } else {
-        SERVER_LOGS.error(
-          '❌ Kiosk registration failed with status: ${response.statusCode}',
-        );
-        SERVER_LOGS.error('Response body: ${response.body}');
-        throw ApiException('Failed to register kiosk', response.statusCode);
-      }
-    } catch (e) {
-      SERVER_LOGS.error('❌ Error during kiosk registration: $e');
-      if (e is ApiException) rethrow;
-      throw ApiException('Network error during registration', 0);
-    }
-  }
-
-  /// Register a new kiosk with the server including password support.
-  ///
-  /// Parameters:
-  /// - [name]: Name of the kiosk
-  /// - [location]: Physical location of the kiosk
-  /// - [password]: SHA-256 hashed password for kiosk admin authentication
-  /// - [description]: Optional description for the kiosk
-  ///
-  /// Returns: A map containing both 'kiosk_key' and 'kiosk_id' that should be stored securely
-  ///
-  /// Throws: [ApiException] if registration fails
-  Future<Map<String, String>> registerKioskWithPassword({
-    required String name,
-    required String location,
-    required String password,
-    String? description,
-  }) async {
-    SERVER_LOGS.info('📝 Registering kiosk with password: $name at $location');
-    await checkApiHealth();
-
-    final requestBody = {
-      'start_api_key': startApiKey,
-      'name': name,
-      'location': location,
-      'password': password, // Include password hash for server
-      'description': description ?? 'Mobile kiosk application',
-    };
-
-    SERVER_LOGS.debug(
-      '📤 Registration request body: ${jsonEncode(requestBody)}',
-    );
-
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/kiosks/register'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(requestBody),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      SERVER_LOGS.debug(
-        '📥 Registration response status: ${response.statusCode}',
-      );
-
-      if (response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        final kioskId = data['kiosk']['kiosk_id'];
-        final kioskKey = data['kiosk_key'];
-
-        SERVER_LOGS.info('✅ Kiosk registered successfully with ID: $kioskId');
-        SERVER_LOGS.debug('🔑 Storing kiosk credentials securely');
-
-        // Store both the key and ID
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('kiosk_key', kioskKey);
-        await prefs.setString('kiosk_id', kioskId);
-
-        SERVER_LOGS.info('💾 Kiosk credentials stored successfully');
-        return {'kiosk_key': kioskKey, 'kiosk_id': kioskId};
-      } else {
-        SERVER_LOGS.error(
-          '❌ Kiosk registration failed with status: ${response.statusCode}',
-        );
-        SERVER_LOGS.error('Response body: ${response.body}');
-        throw ApiException('Failed to register kiosk', response.statusCode);
-      }
-    } catch (e) {
-      SERVER_LOGS.error('❌ Error during kiosk registration: $e');
-      if (e is ApiException) rethrow;
-      throw ApiException('Network error during registration', 0);
-    }
   }
 
   /// Generic GET request for lists
@@ -472,6 +329,7 @@ class KioskApiService {
     }
   }
 
+  // [API methods]
   /// Validates the provided admin password against the server.
   ///
   /// This is useful for unlocking admin-only features in the UI.
@@ -518,7 +376,245 @@ class KioskApiService {
     }
   }
 
-  // API methods
+  /// Test connectivity to the API server
+  Future<bool> testConnection() async {
+    SERVER_LOGS.info('🔌 Testing API connection');
+    try {
+      await checkApiHealth();
+      SERVER_LOGS.info('✅ API connection test passed');
+      return true;
+    } catch (e) {
+      SERVER_LOGS.error('❌ API connection test failed: $e');
+      return false;
+    }
+  }
+
+  /// Enhanced error handling with detailed logging
+  Future<dynamic> handleApiResponse(http.Response response) async {
+    SERVER_LOGS.debug(
+      '🔍 Handling API response with status: ${response.statusCode}',
+    );
+
+    switch (response.statusCode) {
+      case 200:
+      case 201:
+        SERVER_LOGS.info('✅ API request successful');
+        return jsonDecode(response.body);
+      case 401:
+        SERVER_LOGS.error('🔐 Authentication failed. Check kiosk key.');
+        throw ApiException('Authentication failed. Check kiosk key.', 401);
+      case 404:
+        SERVER_LOGS.error('🔍 Resource not found.');
+        throw ApiException('Resource not found.', 404);
+      case 500:
+        SERVER_LOGS.error('💥 Server error. Please try again.');
+        throw ApiException('Server error. Please try again.', 500);
+      default:
+        SERVER_LOGS.error(
+          '❓ Unknown error occurred with status: ${response.statusCode}',
+        );
+        throw ApiException('Unknown error occurred.', response.statusCode);
+    }
+  }
+
+  // __ [Kiosk Management]
+  /// Clear all stored kiosk credentials
+  Future<void> clearCredentials() async {
+    SERVER_LOGS.info('🧹 Clearing stored kiosk credentials');
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove('kiosk_key');
+      await prefs.remove('kiosk_id');
+      SERVER_LOGS.info('✅ Kiosk credentials cleared successfully');
+    } catch (e) {
+      SERVER_LOGS.error('❌ Error clearing credentials: $e');
+    }
+  }
+
+  /// Get the stored kiosk ID for use in other operations.
+  ///
+  /// Returns: The stored kiosk ID string, or null if not found
+  Future<String?> getStoredKioskId() {
+    SERVER_LOGS.debug('🆔 Getting stored kiosk ID');
+    return _getKioskId();
+  }
+
+  /// Get the stored kiosk key for use in other operations.
+  ///
+  /// Returns: The stored kiosk key string, or null if not found
+  Future<String?> getStoredKioskKey() {
+    SERVER_LOGS.debug('🔑 Getting stored kiosk key');
+    return _getKioskKey();
+  }
+
+  /// Create a new kiosk.
+  ///
+  /// Parameters:
+  /// - [kioskData]: KioskData object containing name, location, and optional description
+  ///
+  /// Example:
+  /// ```dart
+  /// final kiosk = KioskData(
+  ///   name: 'Main Store Kiosk',
+  ///   location: 'Store Front',
+  ///   description: 'Customer service kiosk',
+  /// );
+  /// await apiService.createKiosk(kiosk);
+  /// ```
+  ///
+  /// Returns: Created kiosk data with assigned ID
+  ///
+  /// Throws: [ApiException] if creation fails
+  Future<Map<String, dynamic>> createKiosk(KioskData kioskData) {
+    SERVER_LOGS.info('➕ Creating new kiosk: $kioskData');
+    return _post('kiosks', kioskData.toJson());
+  }
+
+  /// Register a new kiosk with the server.
+  ///
+  /// Parameters:
+  /// - [name]: Name of the kiosk
+  /// - [location]: Physical location of the kiosk
+  /// - [description]: Optional description for the kiosk
+  ///
+  /// Returns: A map containing both 'kiosk_key' and 'kiosk_id' that should be stored securely
+  ///
+  /// Throws: [ApiException] if registration fails
+  Future<Map<String, String>> registerKiosk({
+    required String name,
+    required String location,
+    String? description,
+  }) async {
+    SERVER_LOGS.info('📝 Registering kiosk: $name at $location');
+    await checkApiHealth();
+
+    final requestBody = {
+      'start_api_key': startApiKey,
+      'name': name,
+      'location': location,
+      'description': description ?? 'Mobile kiosk application',
+    };
+
+    SERVER_LOGS.debug(
+      '📤 Registration request body: ${jsonEncode(requestBody)}',
+    );
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/kiosks/register'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(requestBody),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      SERVER_LOGS.debug(
+        '📥 Registration response status: ${response.statusCode}',
+      );
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final kioskId = data['kiosk']['kiosk_id'];
+        final kioskKey = data['kiosk_key'];
+
+        SERVER_LOGS.info('✅ Kiosk registered successfully with ID: $kioskId');
+        SERVER_LOGS.debug('🔑 Storing kiosk credentials securely');
+
+        // Store both the key and ID
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('kiosk_key', kioskKey);
+        await prefs.setString('kiosk_id', kioskId);
+
+        SERVER_LOGS.info('💾 Kiosk credentials stored successfully');
+        return {'kiosk_key': kioskKey, 'kiosk_id': kioskId};
+      } else {
+        SERVER_LOGS.error(
+          '❌ Kiosk registration failed with status: ${response.statusCode}',
+        );
+        SERVER_LOGS.error('Response body: ${response.body}');
+        throw ApiException('Failed to register kiosk', response.statusCode);
+      }
+    } catch (e) {
+      SERVER_LOGS.error('❌ Error during kiosk registration: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error during registration', 0);
+    }
+  }
+
+  /// Register a new kiosk with the server including password support.
+  ///
+  /// Parameters:
+  /// - [name]: Name of the kiosk
+  /// - [location]: Physical location of the kiosk
+  /// - [password]: SHA-256 hashed password for kiosk admin authentication
+  /// - [description]: Optional description for the kiosk
+  ///
+  /// Returns: A map containing both 'kiosk_key' and 'kiosk_id' that should be stored securely
+  ///
+  /// Throws: [ApiException] if registration fails
+  Future<Map<String, String>> registerKioskWithPassword({
+    required String name,
+    required String location,
+    required String password,
+    String? description,
+  }) async {
+    SERVER_LOGS.info('📝 Registering kiosk with password: $name at $location');
+    await checkApiHealth();
+
+    final requestBody = {
+      'start_api_key': startApiKey,
+      'name': name,
+      'location': location,
+      'password': password, // Include password hash for server
+      'description': description ?? 'Mobile kiosk application',
+    };
+
+    SERVER_LOGS.debug(
+      '📤 Registration request body: ${jsonEncode(requestBody)}',
+    );
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/kiosks/register'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(requestBody),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      SERVER_LOGS.debug(
+        '📥 Registration response status: ${response.statusCode}',
+      );
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final kioskId = data['kiosk']['kiosk_id'];
+        final kioskKey = data['kiosk_key'];
+
+        SERVER_LOGS.info('✅ Kiosk registered successfully with ID: $kioskId');
+        SERVER_LOGS.debug('🔑 Storing kiosk credentials securely');
+
+        // Store both the key and ID
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('kiosk_key', kioskKey);
+        await prefs.setString('kiosk_id', kioskId);
+
+        SERVER_LOGS.info('💾 Kiosk credentials stored successfully');
+        return {'kiosk_key': kioskKey, 'kiosk_id': kioskId};
+      } else {
+        SERVER_LOGS.error(
+          '❌ Kiosk registration failed with status: ${response.statusCode}',
+        );
+        SERVER_LOGS.error('Response body: ${response.body}');
+        throw ApiException('Failed to register kiosk', response.statusCode);
+      }
+    } catch (e) {
+      SERVER_LOGS.error('❌ Error during kiosk registration: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error during registration', 0);
+    }
+  }
+
   /// Get all kiosks from the server.
   ///
   /// Returns: List of kiosk data containing id, name, location, description, etc.
@@ -579,113 +675,52 @@ class KioskApiService {
     );
   }
 
-  /// Get all products from the server.
+  /// [FIX:140725] Create a new kiosk transaction record.
   ///
-  /// Returns: List of product data containing id, name, price, description, category, etc.
+  /// Parameters:
+  /// - [transactionData]: TransactionData object containing product_id, quantity, total, and optional employee_id
   ///
-  /// Throws: [ApiException] if the request fails
-  Future<List<Map<String, dynamic>>> getProducts() {
-    SERVER_LOGS.info('🛍️ Getting all products');
+  /// Example:
+  /// ```dart
+  /// final transaction = TransactionData(
+  ///   productId: 1,
+  ///   quantity: 2,
+  ///   total: 5.00,
+  ///   employeeId: 1,
+  /// );
+  /// await apiService.createTransaction(transaction);
+  /// ```
+  ///
+  /// Returns: Created transaction data with assigned ID and timestamp
+  ///
+  /// Throws: [ApiException] if creation fails
+  Future<Map<String, dynamic>> createKioskTransaction(
+    KioskTransactionData transactionData,
+  ) {
+    SERVER_LOGS.info('➕ Creating new transaction: $transactionData');
     return _safeApiCall(
-      operationType: OperationType.get,
-      endpoint: 'products',
-      apiCall: () => _getList('products'),
+      operationType: OperationType.post,
+      endpoint: 'kiosk-transactions',
+      data: transactionData.toJson(),
+      apiCall: () => _post('kiosk-transactions', transactionData.toJson()),
     );
   }
 
-  /// Get all employees from the server.
-  ///
-  /// Returns: List of employee data containing id, name, username, age, position, etc.
-  ///
-  /// Throws: [ApiException] if the request fails
-  Future<List<Map<String, dynamic>>> getEmployees() {
-    SERVER_LOGS.info('👥 Getting all employees');
-    return _safeApiCall(
-      operationType: OperationType.get,
-      endpoint: 'employees',
-      apiCall: () => _getList('employees'),
-    );
-  }
-
-  /// Get all transactions from the server.
+  /// Get all kiosk transactions from the server.
   ///
   /// Returns: List of transaction data containing id, product_id, quantity, total, employee_id, timestamp, etc.
   ///
   /// Throws: [ApiException] if the request fails
-  Future<List<Map<String, dynamic>>> getTransactions() {
+  Future<List<Map<String, dynamic>>> getKioskTransactions() {
     SERVER_LOGS.info('💳 Getting all transactions');
     return _safeApiCall(
       operationType: OperationType.get,
-      endpoint: 'transactions',
-      apiCall: () => _getList('transactions'),
+      endpoint: 'kiosk-transactions',
+      apiCall: () => _getList('kiosk-transactions'),
     );
   }
 
-  /// Get all inventory items from the server.
-  ///
-  /// Returns: List of inventory data containing product_id, quantity, last_updated, etc.
-  ///
-  /// Throws: [ApiException] if the request fails
-  Future<List<Map<String, dynamic>>> getInventory() {
-    SERVER_LOGS.info('📦 Getting all inventory items');
-    return _safeApiCall(
-      operationType: OperationType.get,
-      endpoint: 'inventories',
-      apiCall: () => _getList('inventories'),
-    );
-  }
-
-  /// Get all attendance records from the server.
-  ///
-  /// Returns: List of attendance data containing id, employee_id, check_in, check_out, notes, etc.
-  ///
-  /// Throws: [ApiException] if the request fails
-  Future<List<Map<String, dynamic>>> getAttendances() {
-    SERVER_LOGS.info('📅 Getting all attendance records');
-    return _safeApiCall(
-      operationType: OperationType.get,
-      endpoint: 'attendances',
-      apiCall: () => _getList('attendances'),
-    );
-  }
-
-  /// Get all discounts from the server.
-  ///
-  /// Returns: List of discount data containing id, name, percentage, description, valid_from, valid_to, etc.
-  ///
-  /// Throws: [ApiException] if the request fails
-  Future<List<Map<String, dynamic>>> getDiscounts() {
-    SERVER_LOGS.info('🎫 Getting all discounts');
-    return _safeApiCall(
-      operationType: OperationType.get,
-      endpoint: 'discounts',
-      apiCall: () => _getList('discounts'),
-    );
-  }
-
-  /// Create a new kiosk.
-  ///
-  /// Parameters:
-  /// - [kioskData]: KioskData object containing name, location, and optional description
-  ///
-  /// Example:
-  /// ```dart
-  /// final kiosk = KioskData(
-  ///   name: 'Main Store Kiosk',
-  ///   location: 'Store Front',
-  ///   description: 'Customer service kiosk',
-  /// );
-  /// await apiService.createKiosk(kiosk);
-  /// ```
-  ///
-  /// Returns: Created kiosk data with assigned ID
-  ///
-  /// Throws: [ApiException] if creation fails
-  Future<Map<String, dynamic>> createKiosk(KioskData kioskData) {
-    SERVER_LOGS.info('➕ Creating new kiosk: $kioskData');
-    return _post('kiosks', kioskData.toJson());
-  }
-
+  // __ [Product & Set Management]
   /// Add a new product to the system.
   ///
   /// Parameters:
@@ -715,43 +750,103 @@ class KioskApiService {
     );
   }
 
-  /// Add a new employee to the system.
+  /// Get all products from the server.
+  ///
+  /// Returns: List of product data containing id, name, price, description, category, etc.
+  ///
+  /// Throws: [ApiException] if the request fails
+  Future<List<Map<String, dynamic>>> getProducts() {
+    SERVER_LOGS.info('🛍️ Getting all products');
+    return _safeApiCall(
+      operationType: OperationType.get,
+      endpoint: 'products',
+      apiCall: () => _getList('products'),
+    );
+  }
+
+  /// Create a new discount.
   ///
   /// Parameters:
-  /// - [employeeData]: EmployeeData object containing name, username, age, and optional position
+  /// - [discountData]: DiscountData object containing name, percentage, and optional description/validity dates
   ///
   /// Example:
   /// ```dart
-  /// final employee = EmployeeData(
-  ///   kioskId: 'your-kiosk-id',
-  ///   username: 'johndoe',
-  ///   name: 'John Doe',
-  ///   age: 25,
-  ///   password: 'hashed_password',
-  ///   exist: true,
-  ///   isAdmin: false,
-  ///   // Optional fields:
-  ///   // address: '123 Main St',
-  ///   // phoneNumber: '555-1234',
-  ///   // email: 'john@example.com',
-  ///   // description: 'Senior cashier',
-  ///   // image: yourImageBytes,
-  ///   // createdAt: DateTime.now(),
+  /// final discount = DiscountData(
+  ///   name: 'Student Discount',
+  ///   percentage: 10.0,
+  ///   description: '10% off for students',
+  ///   validFrom: DateTime.now(),
+  ///   validTo: DateTime.now().add(Duration(days: 30)),
   /// );
-  /// ```
-  /// await apiService.addEmployee(employee);
+  /// await apiService.createDiscount(discount);
   /// ```
   ///
-  /// Returns: Created employee data with assigned ID
+  /// Returns: Created discount data with assigned ID
   ///
   /// Throws: [ApiException] if creation fails
-  Future<Map<String, dynamic>> addEmployee(EmployeeData employeeData) {
-    SERVER_LOGS.info('➕ Adding new employee: $employeeData');
+  Future<Map<String, dynamic>> createDiscount(DiscountData discountData) {
+    SERVER_LOGS.info('➕ Creating new discount: $discountData');
+    return _post('discounts', discountData.toJson());
+  }
+
+  /// Get all discounts from the server.
+  ///
+  /// Returns: List of discount data containing id, name, percentage, description, valid_from, valid_to, etc.
+  ///
+  /// Throws: [ApiException] if the request fails
+  Future<List<Map<String, dynamic>>> getDiscounts() {
+    SERVER_LOGS.info('🎫 Getting all discounts');
     return _safeApiCall(
-      operationType: OperationType.post,
+      operationType: OperationType.get,
+      endpoint: 'discounts',
+      apiCall: () => _getList('discounts'),
+    );
+  }
+
+  /// Get the direct image URL for a product.
+  ///
+  /// Parameters:
+  /// - [productId]: The ID of the product
+  ///
+  /// Returns: Complete URL string for the product image
+  ///
+  /// Example:
+  /// ```dart
+  /// Image.network(
+  ///   apiService.getProductImageUrl(1),
+  ///   headers: await apiService._getHeaders(),
+  /// )
+  /// ```
+  String getProductImageUrl(int productId) {
+    final url = '$baseUrl/products/$productId/image';
+    SERVER_LOGS.debug('🖼️ Generated product image URL: $url');
+    return url;
+  }
+
+  /// Get the direct image URL for a set.
+  ///
+  /// Parameters:
+  /// - [setId]: The ID of the set
+  ///
+  /// Returns: Complete URL string for the set image
+  String getSetImageUrl(int setId) {
+    final url = '$baseUrl/sets/$setId/image';
+    SERVER_LOGS.debug('🖼️ Generated set image URL: $url');
+    return url;
+  }
+
+  // __ [Employee Management]
+  /// Get all employees from the server.
+  ///
+  /// Returns: List of employee data containing id, name, username, age, position, etc.
+  ///
+  /// Throws: [ApiException] if the request fails
+  Future<List<Map<String, dynamic>>> getEmployees() {
+    SERVER_LOGS.info('👥 Getting all employees');
+    return _safeApiCall(
+      operationType: OperationType.get,
       endpoint: 'employees',
-      data: employeeData.toJson(),
-      apiCall: () => _post('employees', employeeData.toJson()),
+      apiCall: () => _getList('employees'),
     );
   }
 
@@ -798,34 +893,43 @@ class KioskApiService {
     );
   }
 
-  /// Create a new transaction record.
+  /// Add a new employee to the system.
   ///
   /// Parameters:
-  /// - [transactionData]: TransactionData object containing product_id, quantity, total, and optional employee_id
+  /// - [employeeData]: EmployeeData object containing name, username, age, and optional position
   ///
   /// Example:
   /// ```dart
-  /// final transaction = TransactionData(
-  ///   productId: 1,
-  ///   quantity: 2,
-  ///   total: 5.00,
-  ///   employeeId: 1,
+  /// final employee = EmployeeData(
+  ///   kioskId: 'your-kiosk-id',
+  ///   username: 'johndoe',
+  ///   name: 'John Doe',
+  ///   age: 25,
+  ///   password: 'hashed_password',
+  ///   exist: true,
+  ///   isAdmin: false,
+  ///   // Optional fields:
+  ///   // address: '123 Main St',
+  ///   // phoneNumber: '555-1234',
+  ///   // email: 'john@example.com',
+  ///   // description: 'Senior cashier',
+  ///   // image: yourImageBytes,
+  ///   // createdAt: DateTime.now(),
   /// );
-  /// await apiService.createTransaction(transaction);
+  /// ```
+  /// await apiService.addEmployee(employee);
   /// ```
   ///
-  /// Returns: Created transaction data with assigned ID and timestamp
+  /// Returns: Created employee data with assigned ID
   ///
   /// Throws: [ApiException] if creation fails
-  Future<Map<String, dynamic>> createTransaction(
-    TransactionData transactionData,
-  ) {
-    SERVER_LOGS.info('➕ Creating new transaction: $transactionData');
+  Future<Map<String, dynamic>> addEmployee(EmployeeData employeeData) {
+    SERVER_LOGS.info('➕ Adding new employee: $employeeData');
     return _safeApiCall(
       operationType: OperationType.post,
-      endpoint: 'transactions',
-      data: transactionData.toJson(),
-      apiCall: () => _post('transactions', transactionData.toJson()),
+      endpoint: 'employees',
+      data: employeeData.toJson(),
+      apiCall: () => _post('employees', employeeData.toJson()),
     );
   }
 
@@ -857,95 +961,18 @@ class KioskApiService {
     );
   }
 
-  /// Create a new discount.
+  /// Get all attendance records from the server.
   ///
-  /// Parameters:
-  /// - [discountData]: DiscountData object containing name, percentage, and optional description/validity dates
+  /// Returns: List of attendance data containing id, employee_id, check_in, check_out, notes, etc.
   ///
-  /// Example:
-  /// ```dart
-  /// final discount = DiscountData(
-  ///   name: 'Student Discount',
-  ///   percentage: 10.0,
-  ///   description: '10% off for students',
-  ///   validFrom: DateTime.now(),
-  ///   validTo: DateTime.now().add(Duration(days: 30)),
-  /// );
-  /// await apiService.createDiscount(discount);
-  /// ```
-  ///
-  /// Returns: Created discount data with assigned ID
-  ///
-  /// Throws: [ApiException] if creation fails
-  Future<Map<String, dynamic>> createDiscount(DiscountData discountData) {
-    SERVER_LOGS.info('➕ Creating new discount: $discountData');
-    return _post('discounts', discountData.toJson());
-  }
-
-  /// Update inventory quantity for a specific product.
-  ///
-  /// Parameters:
-  /// - [productId]: The ID of the product to update
-  /// - [quantity]: The new quantity amount
-  ///
-  /// Example:
-  /// ```dart
-  /// await apiService.updateInventory(productId: 1, quantity: 50);
-  /// ```
-  ///
-  /// Returns: Updated inventory data
-  ///
-  /// Throws: [ApiException] if update fails
-  Future<Map<String, dynamic>> updateInventory({
-    required int productId,
-    required int quantity,
-  }) {
-    SERVER_LOGS.info(
-      '📦 Updating inventory for product $productId to quantity $quantity',
-    );
+  /// Throws: [ApiException] if the request fails
+  Future<List<Map<String, dynamic>>> getAttendances() {
+    SERVER_LOGS.info('📅 Getting all attendance records');
     return _safeApiCall(
-      operationType: OperationType.put,
-      endpoint: 'inventories/$productId',
-      data: InventoryUpdateData(quantity: quantity).toJson(),
-      apiCall:
-          () => _put(
-            'inventories/$productId',
-            InventoryUpdateData(quantity: quantity).toJson(),
-          ),
+      operationType: OperationType.get,
+      endpoint: 'attendances',
+      apiCall: () => _getList('attendances'),
     );
-  }
-
-  // Image URL helper methods
-  /// Get the direct image URL for a product.
-  ///
-  /// Parameters:
-  /// - [productId]: The ID of the product
-  ///
-  /// Returns: Complete URL string for the product image
-  ///
-  /// Example:
-  /// ```dart
-  /// Image.network(
-  ///   apiService.getProductImageUrl(1),
-  ///   headers: await apiService._getHeaders(),
-  /// )
-  /// ```
-  String getProductImageUrl(int productId) {
-    final url = '$baseUrl/products/$productId/image';
-    SERVER_LOGS.debug('🖼️ Generated product image URL: $url');
-    return url;
-  }
-
-  /// Get the direct image URL for a set.
-  ///
-  /// Parameters:
-  /// - [setId]: The ID of the set
-  ///
-  /// Returns: Complete URL string for the set image
-  String getSetImageUrl(int setId) {
-    final url = '$baseUrl/sets/$setId/image';
-    SERVER_LOGS.debug('🖼️ Generated set image URL: $url');
-    return url;
   }
 
   /// Get the direct image URL for an employee.
@@ -958,293 +985,6 @@ class KioskApiService {
     final url = '$baseUrl/employees/$username/image';
     SERVER_LOGS.debug('🖼️ Generated employee image URL: $url');
     return url;
-  }
-
-  /// Get the stored kiosk ID for use in other operations.
-  ///
-  /// Returns: The stored kiosk ID string, or null if not found
-  Future<String?> getStoredKioskId() {
-    SERVER_LOGS.debug('🆔 Getting stored kiosk ID');
-    return _getKioskId();
-  }
-
-  /// Get the stored kiosk key for use in other operations.
-  ///
-  /// Returns: The stored kiosk key string, or null if not found
-  Future<String?> getStoredKioskKey() {
-    SERVER_LOGS.debug('🔑 Getting stored kiosk key');
-    return _getKioskKey();
-  }
-
-  /// Enhanced error handling with detailed logging
-  Future<dynamic> handleApiResponse(http.Response response) async {
-    SERVER_LOGS.debug(
-      '🔍 Handling API response with status: ${response.statusCode}',
-    );
-
-    switch (response.statusCode) {
-      case 200:
-      case 201:
-        SERVER_LOGS.info('✅ API request successful');
-        return jsonDecode(response.body);
-      case 401:
-        SERVER_LOGS.error('🔐 Authentication failed. Check kiosk key.');
-        throw ApiException('Authentication failed. Check kiosk key.', 401);
-      case 404:
-        SERVER_LOGS.error('🔍 Resource not found.');
-        throw ApiException('Resource not found.', 404);
-      case 500:
-        SERVER_LOGS.error('💥 Server error. Please try again.');
-        throw ApiException('Server error. Please try again.', 500);
-      default:
-        SERVER_LOGS.error(
-          '❓ Unknown error occurred with status: ${response.statusCode}',
-        );
-        throw ApiException('Unknown error occurred.', response.statusCode);
-    }
-  }
-
-  /// Test connectivity to the API server
-  Future<bool> testConnection() async {
-    SERVER_LOGS.info('🔌 Testing API connection');
-    try {
-      await checkApiHealth();
-      SERVER_LOGS.info('✅ API connection test passed');
-      return true;
-    } catch (e) {
-      SERVER_LOGS.error('❌ API connection test failed: $e');
-      return false;
-    }
-  }
-
-  /// Clear all stored kiosk credentials
-  Future<void> clearCredentials() async {
-    SERVER_LOGS.info('🧹 Clearing stored kiosk credentials');
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.remove('kiosk_key');
-      await prefs.remove('kiosk_id');
-      SERVER_LOGS.info('✅ Kiosk credentials cleared successfully');
-    } catch (e) {
-      SERVER_LOGS.error('❌ Error clearing credentials: $e');
-    }
-  }
-
-  /// Get access to the offline queue manager
-  OfflineQueueManager get queueManager => _queueManager;
-
-  /// Get access to the connectivity service
-  InternetConnectionService get connectivityService => _connectivityService;
-
-  /// Check if there are any operations in the queue
-  bool get hasQueuedOperations => _queueManager.queueSize > 0;
-
-  /// Get the current queue size
-  int get queueSize => _queueManager.queueSize;
-
-  /// Get queue status stream
-  Stream<int> get onQueueSizeChanged => _queueManager.onQueueSizeChanged;
-
-  /// Get connectivity status stream
-  Stream<bool> get onConnectivityChanged => _queueManager.onConnectivityChanged;
-
-  /// Manually trigger queue processing (useful for UI buttons)
-  Future<void> processQueue() async {
-    await _queueManager.markOnline();
-  }
-
-  /// Clear all queued operations (use with caution)
-  Future<void> clearQueue() async {
-    SERVER_LOGS.warning('⚠️ Manually clearing operation queue');
-    await _queueManager.clearQueue();
-  }
-
-  /// Safe-failure wrapper for API calls that can be queued when offline
-  /// This method handles the queue execution logic for operations
-  Future<T> _safeApiCall<T>({
-    required OperationType operationType,
-    required String endpoint,
-    Map<String, dynamic>? data,
-    required Future<T> Function() apiCall,
-  }) async {
-    try {
-      // Check if we're online first
-      final bool isOnline = await _connectivityService.isConnected();
-
-      if (!isOnline) {
-        SERVER_LOGS.warning(
-          '📡 Device is offline, queueing operation: $operationType $endpoint',
-        );
-
-        // Queue the operation for later execution
-        await _queueManager.queueOperation(
-          type: operationType,
-          endpoint: endpoint,
-          data: data,
-          headers: await _getHeaders(),
-        );
-
-        throw ApiException(
-          'Device is offline - operation queued for retry when connection is restored',
-          0,
-        );
-      }
-
-      // Execute the API call
-      return await apiCall();
-    } catch (e) {
-      // If it's a network error or server unavailable, queue for retry
-      if (e is ApiException && (e.statusCode == 0 || e.statusCode >= 500)) {
-        SERVER_LOGS.warning(
-          '🔄 Server error, queueing operation: $operationType $endpoint',
-        );
-
-        await _queueManager.queueOperation(
-          type: operationType,
-          endpoint: endpoint,
-          data: data,
-          headers: await _getHeaders(),
-        );
-
-        await _queueManager.markOffline('Server unavailable: ${e.message}');
-      }
-
-      rethrow;
-    }
-  }
-
-  /// Execute a queued operation (implementation for OfflineQueueManager)
-  Future<bool> executeQueuedOperation(QueuedOperation operation) async {
-    SERVER_LOGS.info(
-      '🔄 Executing queued operation: ${operation.type} ${operation.endpoint}',
-    );
-
-    try {
-      // Check API health before executing
-      await checkApiHealth();
-
-      switch (operation.type) {
-        case OperationType.get:
-          // Determine if it's a list or single item GET based on endpoint pattern
-          if (operation.endpoint.contains('/') &&
-              (operation.endpoint.contains('kiosks/') ||
-                  operation.endpoint.contains('products/') ||
-                  operation.endpoint.contains('employees/') ||
-                  operation.endpoint.contains('attendances/') ||
-                  operation.endpoint.contains('transactions/') ||
-                  operation.endpoint.contains('inventories/') ||
-                  operation.endpoint.contains('sets/') ||
-                  operation.endpoint.contains('discounts/'))) {
-            // Single item GET
-            await _getSingleDirect(operation.endpoint);
-          } else {
-            // List GET
-            await _getListDirect(operation.endpoint);
-          }
-          break;
-
-        case OperationType.post:
-          await _postDirect(operation.endpoint, operation.data ?? {});
-          break;
-
-        case OperationType.put:
-          await _putDirect(operation.endpoint, operation.data ?? {});
-          break;
-
-        case OperationType.delete:
-          await _deleteDirect(operation.endpoint);
-          break;
-      }
-
-      SERVER_LOGS.info(
-        '✅ Successfully executed queued operation: ${operation.id}',
-      );
-      return true;
-    } catch (e) {
-      SERVER_LOGS.error(
-        '❌ Failed to execute queued operation ${operation.id}: $e',
-      );
-      return false;
-    }
-  }
-
-  /// Direct API methods (without safe-failure wrapper) for queue execution
-  Future<List<Map<String, dynamic>>> _getListDirect(String endpoint) async {
-    final response = await http
-        .get(Uri.parse('$baseUrl/$endpoint'), headers: await _getHeaders())
-        .timeout(const Duration(seconds: 10));
-
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-    } else {
-      throw ApiException('Failed to load $endpoint', response.statusCode);
-    }
-  }
-
-  Future<Map<String, dynamic>> _getSingleDirect(String endpoint) async {
-    final response = await http
-        .get(Uri.parse('$baseUrl/$endpoint'), headers: await _getHeaders())
-        .timeout(const Duration(seconds: 10));
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw ApiException('Failed to load $endpoint', response.statusCode);
-    }
-  }
-
-  Future<Map<String, dynamic>> _postDirect(
-    String endpoint,
-    Map<String, dynamic> data,
-  ) async {
-    final response = await http
-        .post(
-          Uri.parse('$baseUrl/$endpoint'),
-          headers: await _getHeaders(),
-          body: jsonEncode(data),
-        )
-        .timeout(const Duration(seconds: 15));
-
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw ApiException(
-        'Failed to create resource at $endpoint',
-        response.statusCode,
-      );
-    }
-  }
-
-  Future<Map<String, dynamic>> _putDirect(
-    String endpoint,
-    Map<String, dynamic> data,
-  ) async {
-    final response = await http
-        .put(
-          Uri.parse('$baseUrl/$endpoint'),
-          headers: await _getHeaders(),
-          body: jsonEncode(data),
-        )
-        .timeout(const Duration(seconds: 15));
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw ApiException(
-        'Failed to update resource at $endpoint',
-        response.statusCode,
-      );
-    }
-  }
-
-  Future<void> _deleteDirect(String endpoint) async {
-    final response = await http
-        .delete(Uri.parse('$baseUrl/$endpoint'), headers: await _getHeaders())
-        .timeout(const Duration(seconds: 10));
-
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw ApiException('Failed to delete $endpoint', response.statusCode);
-    }
   }
 
   /// Get a specific employee by username.
@@ -1592,6 +1332,288 @@ class KioskApiService {
       endpoint: 'attendances/status/$username',
       apiCall: () => _getSingle('attendances/status/$username'),
     );
+  }
+
+  // __ [Inventory Management]
+  /// Get all inventory items from the server.
+  ///
+  /// Returns: List of inventory data containing product_id, quantity, last_updated, etc.
+  ///
+  /// Throws: [ApiException] if the request fails
+  Future<List<Map<String, dynamic>>> getInventory() {
+    SERVER_LOGS.info('📦 Getting all inventory items');
+    return _safeApiCall(
+      operationType: OperationType.get,
+      endpoint: 'inventories',
+      apiCall: () => _getList('inventories'),
+    );
+  }
+
+  /// [140725] Create a new inventory record.
+  Future<Map<String, dynamic>> createInventoryTransaction(
+    InventoryTransactionData inventoryData,
+  ) {
+    SERVER_LOGS.info(
+      '➕ Creating new inventory transaction record: $inventoryData',
+    );
+    return _safeApiCall(
+      operationType: OperationType.post,
+      endpoint: 'inventories',
+      data: inventoryData.toJson(),
+      apiCall: () => _post('inventories', inventoryData.toJson()),
+    );
+  }
+
+  /// Update inventory quantity for a specific product.
+  ///
+  /// Parameters:
+  /// - [productId]: The ID of the product to update
+  /// - [quantity]: The new quantity amount
+  ///
+  /// Example:
+  /// ```dart
+  /// await apiService.updateInventory(productId: 1, quantity: 50);
+  /// ```
+  ///
+  /// Returns: Updated inventory data
+  ///
+  /// Throws: [ApiException] if update fails
+  Future<Map<String, dynamic>> updateInventory({
+    required int productId,
+    required int quantity,
+  }) {
+    SERVER_LOGS.info(
+      '📦 Updating inventory for product $productId to quantity $quantity',
+    );
+    return _safeApiCall(
+      operationType: OperationType.put,
+      endpoint: 'inventories/$productId',
+      data: InventoryUpdateData(quantity: quantity).toJson(),
+      apiCall:
+          () => _put(
+            'inventories/$productId',
+            InventoryUpdateData(quantity: quantity).toJson(),
+          ),
+    );
+  }
+
+  // [Queue Management]
+  /// Get access to the offline queue manager
+  OfflineQueueManager get queueManager => _queueManager;
+
+  /// Get access to the connectivity service
+  InternetConnectionService get connectivityService => _connectivityService;
+
+  /// Check if there are any operations in the queue
+  bool get hasQueuedOperations => _queueManager.queueSize > 0;
+
+  /// Get the current queue size
+  int get queueSize => _queueManager.queueSize;
+
+  /// Get queue status stream
+  Stream<int> get onQueueSizeChanged => _queueManager.onQueueSizeChanged;
+
+  /// Get connectivity status stream
+  Stream<bool> get onConnectivityChanged => _queueManager.onConnectivityChanged;
+
+  /// Manually trigger queue processing (useful for UI buttons)
+  Future<void> processQueue() async {
+    await _queueManager.markOnline();
+  }
+
+  /// Clear all queued operations (use with caution)
+  Future<void> clearQueue() async {
+    SERVER_LOGS.warning('⚠️ Manually clearing operation queue');
+    await _queueManager.clearQueue();
+  }
+
+  /// Safe-failure wrapper for API calls that can be queued when offline
+  /// This method handles the queue execution logic for operations
+  Future<T> _safeApiCall<T>({
+    required OperationType operationType,
+    required String endpoint,
+    Map<String, dynamic>? data,
+    required Future<T> Function() apiCall,
+  }) async {
+    try {
+      // Check if we're online first
+      final bool isOnline = await _connectivityService.isConnected();
+
+      if (!isOnline) {
+        SERVER_LOGS.warning(
+          '📡 Device is offline, queueing operation: $operationType $endpoint',
+        );
+
+        // Queue the operation for later execution
+        await _queueManager.queueOperation(
+          type: operationType,
+          endpoint: endpoint,
+          data: data,
+          headers: await _getHeaders(),
+        );
+
+        throw ApiException(
+          'Device is offline - operation queued for retry when connection is restored',
+          0,
+        );
+      }
+
+      // Execute the API call
+      return await apiCall();
+    } catch (e) {
+      // If it's a network error or server unavailable, queue for retry
+      if (e is ApiException && (e.statusCode == 0 || e.statusCode >= 500)) {
+        SERVER_LOGS.warning(
+          '🔄 Server error, queueing operation: $operationType $endpoint',
+        );
+
+        await _queueManager.queueOperation(
+          type: operationType,
+          endpoint: endpoint,
+          data: data,
+          headers: await _getHeaders(),
+        );
+
+        await _queueManager.markOffline('Server unavailable: ${e.message}');
+      }
+
+      rethrow;
+    }
+  }
+
+  /// Execute a queued operation (implementation for OfflineQueueManager)
+  Future<bool> executeQueuedOperation(QueuedOperation operation) async {
+    SERVER_LOGS.info(
+      '🔄 Executing queued operation: ${operation.type} ${operation.endpoint}',
+    );
+
+    try {
+      // Check API health before executing
+      await checkApiHealth();
+
+      switch (operation.type) {
+        case OperationType.get:
+          // Determine if it's a list or single item GET based on endpoint pattern
+          if (operation.endpoint.contains('/') &&
+              (operation.endpoint.contains('kiosks/') ||
+                  operation.endpoint.contains('products/') ||
+                  operation.endpoint.contains('employees/') ||
+                  operation.endpoint.contains('attendances/') ||
+                  operation.endpoint.contains('transactions/') ||
+                  operation.endpoint.contains('inventories/') ||
+                  operation.endpoint.contains('sets/') ||
+                  operation.endpoint.contains('discounts/'))) {
+            // Single item GET
+            await _getSingleDirect(operation.endpoint);
+          } else {
+            // List GET
+            await _getListDirect(operation.endpoint);
+          }
+          break;
+
+        case OperationType.post:
+          await _postDirect(operation.endpoint, operation.data ?? {});
+          break;
+
+        case OperationType.put:
+          await _putDirect(operation.endpoint, operation.data ?? {});
+          break;
+
+        case OperationType.delete:
+          await _deleteDirect(operation.endpoint);
+          break;
+      }
+
+      SERVER_LOGS.info(
+        '✅ Successfully executed queued operation: ${operation.id}',
+      );
+      return true;
+    } catch (e) {
+      SERVER_LOGS.error(
+        '❌ Failed to execute queued operation ${operation.id}: $e',
+      );
+      return false;
+    }
+  }
+
+  // [Direct API methods (without safe-failure wrapper) for queue execution]
+
+  Future<List<Map<String, dynamic>>> _getListDirect(String endpoint) async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/$endpoint'), headers: await _getHeaders())
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+    } else {
+      throw ApiException('Failed to load $endpoint', response.statusCode);
+    }
+  }
+
+  Future<Map<String, dynamic>> _getSingleDirect(String endpoint) async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/$endpoint'), headers: await _getHeaders())
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw ApiException('Failed to load $endpoint', response.statusCode);
+    }
+  }
+
+  Future<Map<String, dynamic>> _postDirect(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/$endpoint'),
+          headers: await _getHeaders(),
+          body: jsonEncode(data),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw ApiException(
+        'Failed to create resource at $endpoint',
+        response.statusCode,
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> _putDirect(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await http
+        .put(
+          Uri.parse('$baseUrl/$endpoint'),
+          headers: await _getHeaders(),
+          body: jsonEncode(data),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw ApiException(
+        'Failed to update resource at $endpoint',
+        response.statusCode,
+      );
+    }
+  }
+
+  Future<void> _deleteDirect(String endpoint) async {
+    final response = await http
+        .delete(Uri.parse('$baseUrl/$endpoint'), headers: await _getHeaders())
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw ApiException('Failed to delete $endpoint', response.statusCode);
+    }
   }
 }
 

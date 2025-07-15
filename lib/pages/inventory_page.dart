@@ -32,6 +32,7 @@ class InventoryPageState extends State<InventoryPage>
     widget.reloadNotifier.addListener(() async {
       await _reloadInventory();
     });
+    resetAuthentication();
     // Register the resetAuth callback if provided
   }
 

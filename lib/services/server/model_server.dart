@@ -101,30 +101,59 @@ class EmployeeData {
       'EmployeeData(id: $id, kioskId: $kioskId, username: $username, name: $name, age: $age, address: $address, phoneNumber: $phoneNumber, email: $email, description: $description, password: [REDACTED], exist: $exist, isAdmin: $isAdmin, image: ${image != null}, createdAt: $createdAt)';
 }
 
-/// [050725] TransactionData
-class TransactionData {
-  final int productId;
-  final int quantity;
-  final double total;
-  final int? employeeId;
+/// [FIX:140725] Kiosk Transaction Data
+class KioskTransactionData {
+  final int timestamp;
+  final String employeeId;
+  final int receiptId;
+  final String receiptList;
+  final String paymentMethod;
+  final double totalAmount;
 
-  TransactionData({
-    required this.productId,
-    required this.quantity,
-    required this.total,
-    this.employeeId,
+  KioskTransactionData({
+    required this.timestamp,
+    required this.employeeId,
+    required this.receiptList,
+    required this.paymentMethod,
+    required this.totalAmount,
+    required this.receiptId,
   });
 
   Map<String, dynamic> toJson() => {
-    'product_id': productId,
-    'quantity': quantity,
-    'total': total,
-    if (employeeId != null) 'employee_id': employeeId,
+    'timestamp': timestamp,
+    'employee_id': employeeId,
+    'receipt_id': receiptId, // Assuming receiptId is part of the data
+    'receipt_list': receiptList,
+    'payment_method': paymentMethod,
+    'total_amount': totalAmount,
   };
 
   @override
   String toString() =>
-      'TransactionData(productId: $productId, quantity: $quantity, total: $total, employeeId: $employeeId)';
+      'KioskTransactionData(timestamp: $timestamp, employeeId: $employeeId, receiptList: $receiptList, paymentMethod: $paymentMethod, totalAmount: $totalAmount)';
+}
+
+/// [140725] Inventory Transaction Data
+class InventoryTransactionData {
+  final DateTime date;
+  final String employeeId;
+  final Map<String, dynamic> data;
+
+  InventoryTransactionData({
+    required this.date,
+    required this.employeeId,
+    required this.data,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'date': date,
+    'employeeId': employeeId,
+    'receipt_list': jsonEncode(data),
+  };
+
+  @override
+  String toString() =>
+      'InventoryTransactionData(date: $date, employeeId: $employeeId, data: $data)';
 }
 
 /// [050725] AttendanceData

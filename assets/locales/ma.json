@@ -156,7 +156,11 @@
         "total_hours": "Jumlah Jam",
         "invalid_password": "Kata Laluan Tidak Sah",
         "already_registered": "Kiosk sudah didaftar",
-        "admin_auth_failed": "Pengesahan Admin Gagal"
+        "admin_auth_failed": "Pengesahan Admin Gagal",
+        "login_as": "Log Masuk Sebagai",
+        "enter_password_to_continue": "Masukkan kata laluan untuk meneruskan",
+        "password": "Kata Laluan",
+        "login": "Log Masuk"
     },
     "home_page": {
         "title": "Laman Utama",
@@ -273,7 +277,8 @@
         "in_packages": "Dalam Bungkusan",
         "not_enough_stock": "Stok tidak mencukupi",
         "select_items": "Item Dipilih",
-        "amount_too_small": "Jumlah Bayaran tidak mencukupi"
+        "amount_too_small": "Jumlah Bayaran tidak mencukupi",
+        "select_account": "Pilih Akaun"
     },
     "inventory_page": {
         "add_stock": "Tambah Stok",

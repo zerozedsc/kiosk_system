@@ -102,6 +102,7 @@ class QueuedOperation {
 }
 
 /// Safe failure system for handling offline operations
+
 class OfflineQueueManager {
   static final OfflineQueueManager _instance = OfflineQueueManager._internal();
   factory OfflineQueueManager() => _instance;
@@ -110,6 +111,8 @@ class OfflineQueueManager {
   static const String _queueKey = 'offline_operations_queue';
   static const String _failureNotificationKey = 'failure_notifications';
   static const int _maxRetries = 3;
+
+  /// [FIX:140725] Retry interval for processing queued operations
   static const Duration _retryInterval = Duration(minutes: 2);
   static const Duration _maxQueueAge = Duration(hours: 24);
 
@@ -410,13 +413,17 @@ class OfflineQueueManager {
     }
   }
 
-  /// Start the retry timer
+  /// [FIX:140725] Start the retry timer
   void _startRetryTimer() {
     _retryTimer?.cancel();
     _retryTimer = Timer.periodic(_retryInterval, (timer) {
-      if (_isOnline && _operationQueue.isNotEmpty && !_isProcessing) {
-        SERVER_LOGS.debug('⏰ Retry timer triggered - processing queue');
-        _processQueue();
+      // Only check if there are items and it's not already processing.
+      // The _processQueue method will handle the online/offline logic internally.
+      if (_operationQueue.isNotEmpty && !_isProcessing) {
+        SERVER_LOGS.debug(
+          '⏰ Retry timer triggered - attempting to process queue',
+        );
+        _processQueue(); // Always try to process the queue
       }
     });
   }

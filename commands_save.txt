@@ -3,18 +3,16 @@ emulator -avd tab36-x86 -skin 2010x1200 -scale 1 -no-snapshot -no-boot-anim
 adb -s emulator-5556 root
 adb pull /data/user/0/com.rozeriya.kiosksystem.debug/app_flutter/app.db
 
-kiosk_pass = 6pGCgq
-
 # For running in debug mode
 flutter run --dart-define-from-file=SECRETS.json
 
 # For building a release version
 flutter build apk --dart-define-from-file=SECRETS.json
 
-5fhe7H
 
-emp: s2a1JO
-Y1vbsd
+
+emp: 8Lm112
+
 
 ALTER TABLE employee_info AUTO_INCREMENT = 1;
 ALTER TABLE kiosk_info AUTO_INCREMENT = 1;

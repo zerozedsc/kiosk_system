@@ -1,13 +1,20 @@
 import '../../configs/configs.dart';
-import '../../services/database/db.dart';
+
 import '../../components/toastmsg.dart';
 
+import '../../services/database/db.dart';
+import '../../services/server/kiosk_server.dart';
+
+export '../../services/server/kiosk_server.dart';
 export '../../services/permission_handler.dart';
 export '../../services/connection/bluetooth.dart';
 export '../../services/connection/usb.dart';
+export '../../services/database/db.dart';
+export '../../services/auth/auth_service.dart';
 
 // ignore: non_constant_identifier_names
 late LoggingService CASHIER_LOGS;
+late KioskApiService apiService;
 
 /// use to process item for transaction
 Map<String, dynamic> processItem(Map<String, dynamic> item) {
@@ -115,9 +122,9 @@ Future<bool> recordTransaction({
         await dbQuery.insertNewData('inventory_transaction', kiosktransaction);
       } else {
         Map<String, dynamic> inventoryData = fetchInventoryData.first;
-        CASHIER_LOGS.debug(
-          "check kioskTransaction[data]: ${CASHIER_LOGS.map2str(kiosktransaction['data'])}",
-        );
+        // CASHIER_LOGS.debug(
+        //   "check kioskTransaction[data]: ${CASHIER_LOGS.map2str(kiosktransaction['data'])}",
+        // );
         Map<String, dynamic> data =
             json.decode(inventoryData['data']) as Map<String, dynamic>;
         kiosktransaction['data'].forEach((key, value) {
@@ -158,8 +165,27 @@ Future<bool> recordTransaction({
 
     // Get the latest transaction ID (which should be the one we just created)
     final newId = await getLatestTransactionId();
+    CASHIER_LOGS.info('Transaction recorded in local database with ID: $newId');
 
-    CASHIER_LOGS.info('Transaction recorded with ID: $newId');
+    try {
+      KioskTransactionData kioskTransactionData = KioskTransactionData(
+        timestamp: processTransactionData['timestamp_int'],
+        employeeId: employeeId,
+        receiptList: json.encode(processTransactionData['receiptList']),
+        paymentMethod: processTransactionData['paymentMethod'],
+        totalAmount: processTransactionData['totalAmount'],
+        receiptId: newId,
+      );
+
+      await apiService.createKioskTransaction(kioskTransactionData);
+    } catch (e, stackTrace) {
+      CASHIER_LOGS.error(
+        'Failed to send transaction data to server',
+        e,
+        stackTrace,
+      );
+    }
+
     return true;
   } catch (e, stackTrace) {
     CASHIER_LOGS.error('Failed to record transaction', e, stackTrace);

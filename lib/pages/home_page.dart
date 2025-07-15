@@ -137,7 +137,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // [ATTENDANCE SECTION]
+  // [140725] [ATTENDANCE SECTION]
   Widget _attendanceSectionTitle(Color mainColor) => Row(
     children: [
       Icon(Icons.people_alt_rounded, color: mainColor),
@@ -442,10 +442,6 @@ class _HomePageState extends State<HomePage> {
 
       setState(() {
         attendanceMaps[emp['id']] = emp;
-
-        // HOMEPAGE_LOGS.debug(
-        //   'Attendance updated for ${emp['name']}: ${HOMEPAGE_LOGS.map2str(emp)}\n\n${HOMEPAGE_LOGS.map2str(attendanceMaps[emp['id']]!)}',
-        // );
       });
 
       Navigator.of(context).pop();
@@ -465,284 +461,299 @@ class _HomePageState extends State<HomePage> {
                 // Set max width for narrower dialog
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 350),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Header with Employee Info
-                      Container(
-                        decoration: BoxDecoration(
-                          color: mainColor.withOpacity(0.1),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(20),
-                            topRight: Radius.circular(20),
+                  // ✨ WRAP the Column with SingleChildScrollView
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Header with Employee Info
+                        Container(
+                          decoration: BoxDecoration(
+                            color: mainColor.withOpacity(0.1),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
+                            ),
                           ),
-                        ),
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                        child: Column(
-                          children: [
-                            // Employee image and basic info
-                            Row(
-                              children: [
-                                // Employee image or icon
-                                Builder(
-                                  builder: (context) {
-                                    final imageBytes =
-                                        homepageService
-                                            .employeeMap[emp['id']]?['image'];
-                                    if (imageBytes != null &&
-                                        imageBytes is List<int> &&
-                                        imageBytes.isNotEmpty) {
-                                      return CircleAvatar(
-                                        radius: 28,
-                                        backgroundImage: MemoryImage(
-                                          Uint8List.fromList(imageBytes),
-                                        ),
-                                      );
-                                    } else {
-                                      return CircleAvatar(
-                                        radius: 28,
-                                        backgroundColor: mainColor.withOpacity(
-                                          0.2,
-                                        ),
-                                        child: Icon(
-                                          Icons.person,
-                                          color: mainColor,
-                                          size: 28,
-                                        ),
-                                      );
-                                    }
-                                  },
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        emp['name'],
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18,
-                                        ),
-                                      ),
-                                      if (emp['username'] != null &&
-                                          emp['username'].toString().isNotEmpty)
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                          child: Column(
+                            children: [
+                              // Employee image and basic info
+                              Row(
+                                children: [
+                                  // Employee image or icon
+                                  Builder(
+                                    builder: (context) {
+                                      final imageBytes =
+                                          homepageService
+                                              .employeeMap[emp['id']]?['image'];
+                                      if (imageBytes != null &&
+                                          imageBytes is List<int> &&
+                                          imageBytes.isNotEmpty) {
+                                        return CircleAvatar(
+                                          radius: 28,
+                                          backgroundImage: MemoryImage(
+                                            Uint8List.fromList(imageBytes),
+                                          ),
+                                        );
+                                      } else {
+                                        return CircleAvatar(
+                                          radius: 28,
+                                          backgroundColor: mainColor
+                                              .withOpacity(0.2),
+                                          child: Icon(
+                                            Icons.person,
+                                            color: mainColor,
+                                            size: 28,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
                                         Text(
-                                          '@${emp['username']}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 13,
+                                          emp['name'],
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
                                           ),
                                         ),
-                                    ],
+                                        if (emp['username'] != null &&
+                                            emp['username']
+                                                .toString()
+                                                .isNotEmpty)
+                                          Text(
+                                            '@${emp['username']}',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              // Time and date info
+                              Container(
+                                margin: const EdgeInsets.only(top: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                  horizontal: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.grey.withOpacity(0.3),
                                   ),
                                 ),
-                              ],
-                            ),
-
-                            // Time and date info
-                            Container(
-                              margin: const EdgeInsets.only(top: 14),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 8,
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: Colors.grey.withOpacity(0.3),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        isClockIn ? Icons.login : Icons.logout,
-                                        color:
-                                            isClockIn
-                                                ? mainColor
-                                                : Colors.grey[700],
-                                        size: 18,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        isClockIn
-                                            ? LOCALIZATION.localize(
-                                              'home_page.clocking_in',
-                                            )
-                                            : LOCALIZATION.localize(
-                                              'home_page.clocking_out',
-                                            ),
-                                        style: TextStyle(
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          isClockIn
+                                              ? Icons.login
+                                              : Icons.logout,
                                           color:
                                               isClockIn
                                                   ? mainColor
                                                   : Colors.grey[700],
-                                          fontWeight: FontWeight.w500,
+                                          size: 18,
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.access_time,
-                                            size: 14,
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          isClockIn
+                                              ? LOCALIZATION.localize(
+                                                'home_page.clocking_in',
+                                              )
+                                              : LOCALIZATION.localize(
+                                                'home_page.clocking_out',
+                                              ),
+                                          style: TextStyle(
+                                            color:
+                                                isClockIn
+                                                    ? mainColor
+                                                    : Colors.grey[700],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.access_time,
+                                              size: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              formattedTime,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.grey[800],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Text(
+                                          formattedDate,
+                                          style: TextStyle(
+                                            fontSize: 12,
                                             color: Colors.grey[600],
                                           ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            formattedTime,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.grey[800],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Text(
-                                        formattedDate,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
 
-                      // Content
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Password field label
-                            Text(
-                              LOCALIZATION.localize('main_word.enter_password'),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
+                        // Content
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Password field label
+                              Text(
+                                LOCALIZATION.localize(
+                                  'main_word.enter_password',
+                                ),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
+                              const SizedBox(height: 8),
 
-                            // Password field
-                            ValueListenableBuilder<bool>(
-                              valueListenable: _obscurePassword,
-                              builder:
-                                  (context, obscure, _) => TextField(
-                                    controller: _passwordController,
-                                    obscureText: obscure,
-                                    decoration: InputDecoration(
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(
-                                          color: Colors.grey.shade300,
-                                        ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(
-                                          color: mainColor,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      isDense: true,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 12,
+                              // Password field
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _obscurePassword,
+                                builder:
+                                    (context, obscure, _) => TextField(
+                                      controller: _passwordController,
+                                      obscureText: obscure,
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
                                           ),
-                                      errorText: errorText,
-                                      hintText: LOCALIZATION.localize(
-                                        'main_word.password_hint',
-                                      ),
-                                      prefixIcon: const Icon(
-                                        Icons.lock_outline,
-                                        size: 20,
-                                      ),
-                                      suffixIcon: IconButton(
-                                        icon: Icon(
-                                          obscure
-                                              ? Icons.visibility_off
-                                              : Icons.visibility,
-                                          color: Colors.grey,
+                                          borderSide: BorderSide(
+                                            color: Colors.grey.shade300,
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          borderSide: BorderSide(
+                                            color: mainColor,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        isDense: true,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 12,
+                                            ),
+                                        errorText: errorText,
+                                        hintText: LOCALIZATION.localize(
+                                          'main_word.password_hint',
+                                        ),
+                                        prefixIcon: const Icon(
+                                          Icons.lock_outline,
                                           size: 20,
                                         ),
-                                        onPressed: () {
-                                          _obscurePassword.value = !obscure;
-                                        },
-                                      ),
-                                      errorBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(
-                                          color: Colors.red.shade300,
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            obscure
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
+                                            color: Colors.grey,
+                                            size: 20,
+                                          ),
+                                          onPressed: () {
+                                            _obscurePassword.value = !obscure;
+                                          },
+                                        ),
+                                        errorBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          borderSide: BorderSide(
+                                            color: Colors.red.shade300,
+                                          ),
                                         ),
                                       ),
+                                      style: const TextStyle(fontSize: 14),
+                                      onSubmitted: (_) => _onConfirm(),
+                                      textInputAction: TextInputAction.done,
                                     ),
-                                    style: const TextStyle(fontSize: 14),
-                                    onSubmitted: (_) => _onConfirm(),
-                                    textInputAction: TextInputAction.done,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Action buttons
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: Text(
+                                  LOCALIZATION.localize('main_word.cancel'),
+                                  style: TextStyle(color: Colors.grey[700]),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+
+                              ElevatedButton(
+                                onPressed: _onConfirm,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: mainColor,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                            ),
-                          ],
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: Text(
+                                  LOCALIZATION.localize('main_word.confirm'),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-
-                      // Action buttons
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: Text(
-                                LOCALIZATION.localize('main_word.cancel'),
-                                style: TextStyle(color: Colors.grey[700]),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-
-                            ElevatedButton(
-                              onPressed: _onConfirm,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: mainColor,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                                elevation: 0,
-                              ),
-                              child: Text(
-                                LOCALIZATION.localize('main_word.confirm'),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

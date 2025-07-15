@@ -22,6 +22,7 @@ class CashierPageState extends State<CashierPage> {
   // init variable
   bool firstLoad = true;
   bool _isLoading = false;
+  bool _isAuthenticated = false;
 
   // cashier variable
   int currentOrderId = 1; // Order ID tracking variable
@@ -37,8 +38,14 @@ class CashierPageState extends State<CashierPage> {
   Map<String, dynamic> receiptData = {};
   Map<int, dynamic> outOfStockItems = {};
 
+  void resetAuthentication() {
+    setState(() {
+      _isAuthenticated = false;
+    });
+  }
+
   // Add this method to reload product data
-  Future<void> _loadProductsData() async {
+  Future<void> _loadInitData() async {
     try {
       setState(
         () => _isLoading = true,
@@ -101,7 +108,9 @@ class CashierPageState extends State<CashierPage> {
   @override
   void initState() {
     super.initState();
-    _loadProductsData();
+    resetAuthentication();
+    apiService = KioskApiService();
+    _loadInitData();
     firstLoad = false;
     widget.reloadNotifier.addListener(() async {
       await _reloadAll();
@@ -118,7 +127,7 @@ class CashierPageState extends State<CashierPage> {
   }
 
   Future<void> _reloadAll() async {
-    await _loadProductsData();
+    await _loadInitData();
     setState(() {
       cart.clear();
       outOfStockItems.clear();
@@ -2677,8 +2686,244 @@ class CashierPageState extends State<CashierPage> {
     );
   }
 
+  /// [NEW:150725] [Employee Selection and Login Screen]
+  Widget _buildEmployeeSelectionScreen() {
+    final activeEmployees =
+        EMPQUERY.employees.values
+            .where((emp) => emp['exist'] == 1 || emp['exist'] == '1')
+            .toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(LOCALIZATION.localize("cashier_page.select_account")),
+        centerTitle: true,
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
+      ),
+      body:
+          activeEmployees.isEmpty
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.people_outline,
+                      size: 60,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      LOCALIZATION.localize("cashier_page.no_employees_found"),
+                      style: const TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
+              : GridView.builder(
+                padding: const EdgeInsets.all(24.0),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  crossAxisSpacing: 24.0,
+                  mainAxisSpacing: 24.0,
+                  childAspectRatio: 0.85,
+                ),
+                itemCount: activeEmployees.length,
+                itemBuilder: (context, index) {
+                  return _buildEmployeeTile(activeEmployees[index]);
+                },
+              ),
+    );
+  }
+
+  Widget _buildEmployeeTile(Map<String, dynamic> employee) {
+    final imageBytes = employee['image'];
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () => _showLoginDialog(employee),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundImage:
+                    (imageBytes != null &&
+                            imageBytes is Uint8List &&
+                            imageBytes.isNotEmpty)
+                        ? MemoryImage(imageBytes)
+                        : null,
+                child:
+                    (imageBytes == null ||
+                            !(imageBytes is Uint8List) ||
+                            imageBytes.isEmpty)
+                        ? const Icon(Icons.person, size: 40)
+                        : null,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                employee['name'] ?? 'Unknown',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '@${employee['username'] ?? '...'}',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLoginDialog(Map<String, dynamic> employee) {
+    final TextEditingController passwordController = TextEditingController();
+    final ValueNotifier<bool> obscurePassword = ValueNotifier<bool>(true);
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Text(
+                '${LOCALIZATION.localize("main_word.login_as")} ${employee['name']}',
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    LOCALIZATION.localize(
+                      "main_word.enter_password_to_continue",
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: obscurePassword,
+                    builder:
+                        (context, obscure, _) => TextField(
+                          controller: passwordController,
+                          obscureText: obscure,
+                          decoration: InputDecoration(
+                            labelText: LOCALIZATION.localize(
+                              "main_word.password",
+                            ),
+                            errorText: errorText,
+                            border: const OutlineInputBorder(),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                obscure
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                              onPressed: () => obscurePassword.value = !obscure,
+                            ),
+                          ),
+                          onSubmitted:
+                              (_) => _performLogin(
+                                context,
+                                employee,
+                                passwordController.text,
+                                (newError) {
+                                  setStateDialog(() => errorText = newError);
+                                },
+                              ),
+                        ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(LOCALIZATION.localize("main_word.cancel")),
+                ),
+                ElevatedButton(
+                  onPressed:
+                      () => _performLogin(
+                        context,
+                        employee,
+                        passwordController.text,
+                        (newError) {
+                          setStateDialog(() => errorText = newError);
+                        },
+                      ),
+                  child: Text(LOCALIZATION.localize("main_word.login")),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _performLogin(
+    BuildContext dialogContext,
+    Map<String, dynamic> employee,
+    String password,
+    Function(String?) setError,
+  ) async {
+    if (password.isEmpty) {
+      setError(LOCALIZATION.localize('main_word.password_required'));
+      return;
+    }
+
+    final storedHash = employee['password'];
+    if (storedHash == null || storedHash.isEmpty) {
+      showToastMessage(
+        context,
+        LOCALIZATION.localize('main_word.password_data_error'),
+        ToastLevel.error,
+      );
+      Navigator.of(dialogContext).pop();
+      return;
+    }
+
+    final bool isValid = await EncryptService().decryptPassword(
+      storedHash,
+      targetPassword: password,
+    );
+
+    if (isValid) {
+      Navigator.of(dialogContext).pop();
+      setState(() {
+        _isAuthenticated = true;
+        employeeID = employee['username'];
+        employeeName = employee['name'];
+      });
+      showToastMessage(
+        context,
+        '${LOCALIZATION.localize("main_word.welcome")}, ${employee['name']}!',
+        ToastLevel.success,
+      );
+    } else {
+      setError(LOCALIZATION.localize('main_word.password_incorrect'));
+      showToastMessage(
+        context,
+        LOCALIZATION.localize('main_word.password_incorrect'),
+        ToastLevel.error,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!_isAuthenticated) {
+      return _buildEmployeeSelectionScreen();
+    }
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: SafeArea(
