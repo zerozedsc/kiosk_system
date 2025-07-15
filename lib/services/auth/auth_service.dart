@@ -138,8 +138,7 @@ class KioskAuthService {
       );
 
       // Register kiosk with server
-      final apiService = KioskApiService();
-      final serverResult = await apiService.registerKioskWithPassword(
+      final serverResult = await kioskApiService.registerKioskWithPassword(
         name: data["kiosk_name"],
         location: data["location"],
         password: serverPasswordHash, // Send SHA-256 hash to server
@@ -226,8 +225,7 @@ class KioskAuthService {
   /// Check if kiosk is online by testing server connectivity
   static Future<bool> _checkKioskOnlineStatus() async {
     try {
-      final apiService = KioskApiService();
-      return await apiService.testConnection();
+      return await kioskApiService.testConnection();
     } catch (e) {
       APP_LOGS.warning('Kiosk online check failed: $e');
       return false;
@@ -246,7 +244,6 @@ class KioskAuthService {
     String? newPassword,
   }) async {
     try {
-      final apiService = KioskApiService();
       final kioskId = globalAppConfig["kiosk_info"]?["kiosk_id"];
 
       if (kioskId == null) {
@@ -260,7 +257,7 @@ class KioskAuthService {
         description: 'Updated mobile kiosk application',
       );
 
-      await apiService.updateKiosk(kioskId, kioskData);
+      await kioskApiService.updateKiosk(kioskId, kioskData);
 
       // If password update is needed, handle it separately
       if (newPassword != null && newPassword.isNotEmpty) {
@@ -344,8 +341,7 @@ class KioskAuthService {
       );
 
       // Register kiosk with server
-      final apiService = KioskApiService();
-      final serverResult = await apiService.registerKioskWithPassword(
+      final serverResult = await kioskApiService.registerKioskWithPassword(
         name: kioskName,
         location: location,
         password: serverPasswordHash,
@@ -727,7 +723,7 @@ class AdminAuthDialog extends StatelessWidget {
 
   static Future<bool> adminAuth(String password) async {
     try {
-      bool checkAdminPassword = await KioskApiService().checkAdminPassword(
+      bool checkAdminPassword = await kioskApiService.checkAdminPassword(
         password,
       );
       return checkAdminPassword;

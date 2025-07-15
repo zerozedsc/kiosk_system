@@ -109,7 +109,6 @@ class CashierPageState extends State<CashierPage> {
   void initState() {
     super.initState();
     resetAuthentication();
-    apiService = KioskApiService();
     _loadInitData();
     firstLoad = false;
     widget.reloadNotifier.addListener(() async {
@@ -2686,12 +2685,17 @@ class CashierPageState extends State<CashierPage> {
     );
   }
 
-  /// [NEW:150725] [Employee Selection and Login Screen]
+  // [NEW:150725] [Employee Selection and Login Screen]
+  /// [FIX: 150725] [Employee Selection and Login Screen] - Now Responsive
   Widget _buildEmployeeSelectionScreen() {
     final activeEmployees =
         EMPQUERY.employees.values
             .where((emp) => emp['exist'] == 1 || emp['exist'] == '1')
             .toList();
+
+    // Define a max width for each employee tile. The grid will fit as many
+    // columns as possible without exceeding this width for each tile.
+    const double maxTileWidth = 200.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -2699,6 +2703,7 @@ class CashierPageState extends State<CashierPage> {
         centerTitle: true,
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
       ),
       body:
           activeEmployees.isEmpty
@@ -2721,12 +2726,14 @@ class CashierPageState extends State<CashierPage> {
               )
               : GridView.builder(
                 padding: const EdgeInsets.all(24.0),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
+                // --- CHANGE IS HERE ---
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: maxTileWidth, // Use the max width here
                   crossAxisSpacing: 24.0,
                   mainAxisSpacing: 24.0,
                   childAspectRatio: 0.85,
                 ),
+                // --- END OF CHANGE ---
                 itemCount: activeEmployees.length,
                 itemBuilder: (context, index) {
                   return _buildEmployeeTile(activeEmployees[index]);
@@ -2798,9 +2805,7 @@ class CashierPageState extends State<CashierPage> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              title: Text(
-                '${LOCALIZATION.localize("main_word.login_as")} ${employee['name']}',
-              ),
+              title: Text(LOCALIZATION.localize("main_word.login")),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2905,7 +2910,7 @@ class CashierPageState extends State<CashierPage> {
       });
       showToastMessage(
         context,
-        '${LOCALIZATION.localize("main_word.welcome")}, ${employee['name']}!',
+        '${LOCALIZATION.localize("home_page.employee_set")}: ${employee['name']}!',
         ToastLevel.success,
       );
     } else {

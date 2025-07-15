@@ -8,6 +8,8 @@ import '../connection/internet.dart';
 import 'model_server.dart';
 export 'model_server.dart';
 
+late KioskApiService kioskApiService;
+
 /// [050725] InventoryUpdateData
 class InventoryUpdateData {
   final int quantity;
@@ -1358,9 +1360,9 @@ class KioskApiService {
     );
     return _safeApiCall(
       operationType: OperationType.post,
-      endpoint: 'inventories',
+      endpoint: 'inventory-transactions',
       data: inventoryData.toJson(),
-      apiCall: () => _post('inventories', inventoryData.toJson()),
+      apiCall: () => _post('inventory-transactions', inventoryData.toJson()),
     );
   }
 
@@ -1378,22 +1380,17 @@ class KioskApiService {
   /// Returns: Updated inventory data
   ///
   /// Throws: [ApiException] if update fails
-  Future<Map<String, dynamic>> updateInventory({
-    required int productId,
-    required int quantity,
-  }) {
+  Future<Map<String, dynamic>> updateInventoryTransaction(
+    InventoryTransactionData inventoryData,
+  ) {
     SERVER_LOGS.info(
-      '📦 Updating inventory for product $productId to quantity $quantity',
+      '📦 ${inventoryData.employeeId} Updating inventory for product at ${inventoryData.date}',
     );
     return _safeApiCall(
       operationType: OperationType.put,
-      endpoint: 'inventories/$productId',
-      data: InventoryUpdateData(quantity: quantity).toJson(),
-      apiCall:
-          () => _put(
-            'inventories/$productId',
-            InventoryUpdateData(quantity: quantity).toJson(),
-          ),
+      endpoint: 'inventory-transactions',
+      data: inventoryData.toJson(),
+      apiCall: () => _put('inventory-transactions', inventoryData.toJson()),
     );
   }
 
@@ -1427,7 +1424,7 @@ class KioskApiService {
     await _queueManager.clearQueue();
   }
 
-  /// Safe-failure wrapper for API calls that can be queued when offline
+  /// [FIX:150725] Safe-failure wrapper for API calls that can be queued when offline
   /// This method handles the queue execution logic for operations
   Future<T> _safeApiCall<T>({
     required OperationType operationType,
@@ -1474,7 +1471,7 @@ class KioskApiService {
           headers: await _getHeaders(),
         );
 
-        await _queueManager.markOffline('Server unavailable: ${e.message}');
+        // await _queueManager.markOffline('Server unavailable: ${e.message}');
       }
 
       rethrow;
@@ -1489,7 +1486,7 @@ class KioskApiService {
 
     try {
       // Check API health before executing
-      await checkApiHealth();
+      // await checkApiHealth();
 
       switch (operation.type) {
         case OperationType.get:

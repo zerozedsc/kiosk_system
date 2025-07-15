@@ -133,11 +133,11 @@ class KioskTransactionData {
       'KioskTransactionData(timestamp: $timestamp, employeeId: $employeeId, receiptList: $receiptList, paymentMethod: $paymentMethod, totalAmount: $totalAmount)';
 }
 
-/// [140725] Inventory Transaction Data
+/// [FIX:150725] Inventory Transaction Data
 class InventoryTransactionData {
   final DateTime date;
   final String employeeId;
-  final Map<String, dynamic> data;
+  final String data;
 
   InventoryTransactionData({
     required this.date,
@@ -146,9 +146,9 @@ class InventoryTransactionData {
   });
 
   Map<String, dynamic> toJson() => {
-    'date': date,
-    'employeeId': employeeId,
-    'receipt_list': jsonEncode(data),
+    'date': date.toIso8601String(),
+    'employee_id': employeeId,
+    'data': data,
   };
 
   @override

@@ -205,32 +205,45 @@ class OfflineQueueManager {
     }
   }
 
-  /// Mark system as online and process queue
+  /// [FIX:150725] Mark system as online and process queue
   Future<void> markOnline() async {
-    if (!_isOnline) {
-      _isOnline = true;
-      _connectivityController.add(true);
+    // Set the state to true, regardless of what it was before.
+    // [DEBUG-STEP-3] Add this log line at the very top
+    SERVER_LOGS.debug(
+      "[DEBUG-STEP-3] markOnline() called at ${DateTime.now()}",
+    );
+    _isOnline = true;
+    _connectivityController.add(true);
 
-      SERVER_LOGS.info(
-        '📡 System marked as online - processing queued operations',
-      );
+    SERVER_LOGS.info(
+      '📡 System is online - attempting to process any queued operations.',
+    );
 
-      // Show success notification
-      EnhancedNotificationService().notifySuccess(
-        'System Online',
-        'Processing queued operations',
-      );
+    // Show a notification that we're back online.
+    EnhancedNotificationService().notifySuccess(
+      'Connection Restored',
+      'Processing any pending operations.',
+    );
 
-      // Process queued operations
-      await _processQueue();
-    }
+    // ALWAYS attempt to process the queue.
+    await _processQueue();
   }
 
   /// Process all queued operations
   Future<void> _processQueue() async {
-    if (_isProcessing || _operationQueue.isEmpty) return;
+    // [DEBUG-STEP-4] Add this log line
+    SERVER_LOGS.debug(
+      "[DEBUG-STEP-4] _processQueue() called. State: isOnline=$_isOnline, isProcessing=$_isProcessing, queueSize=${_operationQueue.length}",
+    );
+
+    if (!_isOnline || _isProcessing || _operationQueue.isEmpty) return;
 
     _isProcessing = true;
+    // [DEBUG-STEP-5] Add this log line
+    SERVER_LOGS.debug(
+      "[DEBUG-STEP-5] Guard clause passed. Starting loop to process operations.",
+    );
+
     SERVER_LOGS.info(
       '🔄 Processing ${_operationQueue.length} queued operations',
     );
@@ -308,8 +321,7 @@ class OfflineQueueManager {
   Future<bool> _executeOperation(QueuedOperation operation) async {
     // Get the KioskApiService instance and execute the operation
     try {
-      final apiService = KioskApiService();
-      return await apiService.executeQueuedOperation(operation);
+      return await kioskApiService.executeQueuedOperation(operation);
     } catch (e) {
       SERVER_LOGS.error('❌ Failed to execute queued operation: $e');
       return false;
@@ -413,17 +425,35 @@ class OfflineQueueManager {
     }
   }
 
-  /// [FIX:140725] Start the retry timer
+  /// [FIX:150725] Start the retry timer
   void _startRetryTimer() {
     _retryTimer?.cancel();
-    _retryTimer = Timer.periodic(_retryInterval, (timer) {
-      // Only check if there are items and it's not already processing.
-      // The _processQueue method will handle the online/offline logic internally.
+    _retryTimer = Timer.periodic(_retryInterval, (timer) async {
+      // Make it async
+      // Check for items to avoid unnecessary work.
+      // [DEBUG-STEP-1] Add this log line
+      SERVER_LOGS.debug(
+        "[DEBUG-STEP-1] Retry Timer Fired at ${DateTime.now()}",
+      );
       if (_operationQueue.isNotEmpty && !_isProcessing) {
         SERVER_LOGS.debug(
-          '⏰ Retry timer triggered - attempting to process queue',
+          '⏰ Retry timer triggered - checking connection and attempting to process.',
         );
-        _processQueue(); // Always try to process the queue
+
+        // First, check for a real connection.
+        final bool isConnected =
+            await KioskApiService().connectivityService.isConnected();
+
+        // [DEBUG-STEP-2] Add this log line
+        SERVER_LOGS.debug(
+          "[DEBUG-STEP-2] Network check result: isConnected = $isConnected",
+        );
+
+        // If connected, call markOnline() to ensure the state is correct
+        // and the queue is processed.
+        if (isConnected) {
+          await markOnline();
+        }
       }
     });
   }

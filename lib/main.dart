@@ -10,6 +10,7 @@ import 'services/connection/bluetooth.dart';
 import 'services/connection/usb.dart';
 import 'services/connection/internet.dart';
 import 'services/auth/auth_service.dart';
+import 'services/server/kiosk_server.dart';
 
 import 'components/toastmsg.dart';
 import 'components/notification_island.dart';
@@ -36,6 +37,8 @@ Future<void> runAppInitializations() async {
   await EMPQUERY.initialize();
   inventory = await InventoryServices().initialize();
   homepageService = await HomepageService().initialize();
+  kioskApiService = KioskApiService(); // Initialize KioskApiService
+  await kioskApiService.initialize();
 
   // Initialize localization
   LOCALIZATION = LocalizationManager(

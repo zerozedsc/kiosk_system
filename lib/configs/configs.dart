@@ -1,4 +1,6 @@
 //export from configs
+// ignore_for_file: constant_identifier_names
+
 export 'package:flutter/material.dart';
 export 'package:shared_preferences/shared_preferences.dart';
 // export 'package:autocomplete_textfield/autocomplete_textfield.dart';
@@ -46,8 +48,6 @@ late LoggingService APP_LOGS, SERVER_LOGS;
 BtPrinter? btPrinter;
 UsbManager? USB;
 bool canVibrate = false;
-// ignore: constant_identifier_names
-const bool DEBUG = false;
 
 const double kTopSpacing = 12.0;
 const double kHorizontalSpacing = 10.0;
@@ -160,6 +160,13 @@ final ThemeData mainThemeData = ThemeData(
   ),
 );
 
+// [DEBUG VARIABLES]
+const bool DEBUG = true;
+const bool DEBUG_AUTH_IN_TESTING =
+    false; // Changed to false to enable authentication
+const bool UPDATE_DB_AS_DEBUG = false; // Update DB when in DEBUG mode
+const bool UPDATE_CONFIG_AS_DEBUG = false;
+
 /// notifier for app state changes
 ValueNotifier<String> themeNotifier = ValueNotifier<String>("light");
 
@@ -231,7 +238,7 @@ class ConfigService {
       );
       final List<int> writableBytes = await File(configPath).readAsBytes();
 
-      if (!compareBytes(assetBytes, writableBytes) && DEBUG) {
+      if (!compareBytes(assetBytes, writableBytes) && UPDATE_CONFIG_AS_DEBUG) {
         APP_LOGS.warning(
           "Config in assets has been updated. Replacing the writable config file...",
         );
@@ -500,7 +507,11 @@ class LoggingService {
       _logger.severe(_formatMessage(message), error, stackTrace);
 
   /// Log a message at the [Level.fine] log level. More detailed than INFO, useful for debugging.
-  void debug(dynamic message) => _logger.fine(_formatMessage(message));
+  void debug(dynamic message) {
+    if (DEBUG) {
+      _logger.fine(_formatMessage(message));
+    }
+  }
 
   /// Log a message at the [Level.shout] log level.
   void critical(dynamic message) => _logger.shout(_formatMessage(message));

@@ -29,13 +29,11 @@ class EmployeeAccountSection extends StatefulWidget {
 class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
   Map<String, Map<String, dynamic>> employees = {};
   late LoggingService LOGS;
-  late KioskApiService apiService;
 
   @override
   void initState() {
     super.initState();
     LOGS = widget.LOGS;
-    apiService = KioskApiService();
     _loadEmployees();
   }
 
@@ -486,7 +484,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
 
     // Add variables to track synchronization state
     bool isSyncing = false;
-    bool isOnline = await KioskApiService().testConnection();
+    bool isOnline = await kioskApiService.testConnection();
 
     Future<void> pickImage() async {
       final picker = ImagePicker();
@@ -930,10 +928,8 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                       );
 
                                                       // Add employee to server first
-                                                      final apiService =
-                                                          KioskApiService();
                                                       final serverResponse =
-                                                          await apiService
+                                                          await kioskApiService
                                                               .addEmployee(
                                                                 employeeData,
                                                               );
@@ -1056,7 +1052,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                           usernameController
                                                               .text
                                                               .isNotEmpty) {
-                                                        await apiService
+                                                        await kioskApiService
                                                             .updateEmployee(
                                                               usernameController
                                                                   .text,
@@ -1066,7 +1062,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                                           'Server sync successful for employee update (Username: ${usernameController.text})',
                                                         );
                                                       } else {
-                                                        await apiService
+                                                        await kioskApiService
                                                             .addEmployee(
                                                               employeeData,
                                                             );
@@ -1392,7 +1388,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
   ) async {
     try {
       // Check if online
-      bool isOnline = await KioskApiService().testConnection();
+      bool isOnline = await kioskApiService.testConnection();
       if (!isOnline) {
         showToastMessage(
           context,
@@ -1431,7 +1427,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
 
       // Sync with server
 
-      final serverResponse = await apiService.addEmployee(employeeData);
+      final serverResponse = await kioskApiService.addEmployee(employeeData);
 
       // Extract username from server response
       final serverAssignedUsername = serverResponse['username'] as String?;
@@ -1825,7 +1821,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                     );
 
                                     if (confirmed == true) {
-                                      await apiService.updateEmployee(
+                                      await kioskApiService.updateEmployee(
                                         emp["username"],
                                         EmployeeData(
                                           kioskId: emp["kiosk_id"] ?? "",

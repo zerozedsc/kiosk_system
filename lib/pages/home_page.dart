@@ -335,11 +335,8 @@ class _HomePageState extends State<HomePage> {
 
     void _onConfirm() async {
       final inputPassword = _passwordController.text;
-      // TODO: [REMOVE DEBUG VAR] Remove this when testing is done
-      bool authInTesting = false; // Changed to false to enable authentication
-      // Check if password is empty
 
-      if (!authInTesting) {
+      if (!DEBUG_AUTH_IN_TESTING) {
         if (inputPassword.isEmpty) {
           setState(() {
             errorText = LOCALIZATION.localize('main_word.password_required');

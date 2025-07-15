@@ -14,7 +14,6 @@ export '../../services/auth/auth_service.dart';
 
 // ignore: non_constant_identifier_names
 late LoggingService CASHIER_LOGS;
-late KioskApiService apiService;
 
 /// use to process item for transaction
 Map<String, dynamic> processItem(Map<String, dynamic> item) {
@@ -120,6 +119,27 @@ Future<bool> recordTransaction({
       if (fetchInventoryData.isEmpty) {
         kiosktransaction["data"] = json.encode(kiosktransaction["data"]);
         await dbQuery.insertNewData('inventory_transaction', kiosktransaction);
+
+        try {
+          // Log the new inventory transaction
+          DateTime dateTimeObject = DateTime.parse(kiosktransaction['date']);
+          InventoryTransactionData inventoryTransactionData =
+              InventoryTransactionData(
+                date: dateTimeObject,
+                employeeId: employeeId,
+                data: kiosktransaction["data"],
+              );
+
+          await kioskApiService.createInventoryTransaction(
+            inventoryTransactionData,
+          );
+        } catch (e, stackTrace) {
+          SERVER_LOGS.error(
+            'Failed to insert new inventory transaction',
+            e,
+            stackTrace,
+          );
+        }
       } else {
         Map<String, dynamic> inventoryData = fetchInventoryData.first;
         // CASHIER_LOGS.debug(
@@ -145,6 +165,27 @@ Future<bool> recordTransaction({
           inventoryData['id'],
           kiosktransaction,
         );
+
+        try {
+          // Log the updated inventory transaction
+          DateTime dateTimeObject = DateTime.parse(kiosktransaction['date']);
+          InventoryTransactionData inventoryTransactionData =
+              InventoryTransactionData(
+                date: dateTimeObject,
+                employeeId: employeeId,
+                data: kiosktransaction["data"],
+              );
+
+          await kioskApiService.updateInventoryTransaction(
+            inventoryTransactionData,
+          );
+        } catch (e, stackTrace) {
+          SERVER_LOGS.error(
+            'Failed to update inventory transaction',
+            e,
+            stackTrace,
+          );
+        }
       }
     } catch (e) {
       CASHIER_LOGS.error(
@@ -177,9 +218,9 @@ Future<bool> recordTransaction({
         receiptId: newId,
       );
 
-      await apiService.createKioskTransaction(kioskTransactionData);
+      await kioskApiService.createKioskTransaction(kioskTransactionData);
     } catch (e, stackTrace) {
-      CASHIER_LOGS.error(
+      SERVER_LOGS.error(
         'Failed to send transaction data to server',
         e,
         stackTrace,

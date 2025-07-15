@@ -160,7 +160,8 @@
         "login_as": "Log Masuk Sebagai",
         "enter_password_to_continue": "Masukkan kata laluan untuk meneruskan",
         "password": "Kata Laluan",
-        "login": "Log Masuk"
+        "login": "Log Masuk",
+        "welcome": "Selamat Datang"
     },
     "home_page": {
         "title": "Laman Utama",
@@ -199,7 +200,8 @@
         "unknown_category": "Kategori Tidak Diketahui",
         "advanced_sales_summary": "Ringkasan Jualan Lanjutan",
         "payment_method_summary": "Ringkasan Kaedah Pembayaran",
-        "no_notifications_details": "Anda telah melihat semua notifikasi terkini."
+        "no_notifications_details": "Anda telah melihat semua notifikasi terkini.",
+        "employee_set": "Pekerja Ditugaskan"
     },
     "auth_page": {
         "signup_kiosk": "Daftar Kiosk",
