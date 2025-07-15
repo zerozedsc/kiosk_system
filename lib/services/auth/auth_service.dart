@@ -735,11 +735,30 @@ class AdminAuthDialog extends StatelessWidget {
 }
 
 /// [050725] Checks if the provided password matches the employee password.
-Future<bool> empAuth(String password) async {
+Future<dynamic> empAuth(
+  Map<String, dynamic> employee,
+  String password, {
+  LoggingService? LOGS,
+}) async {
+  LOGS ??= APP_LOGS;
   try {
-    return true;
+    // Use provided LOGS or fallback to APP_LOGS
+
+    // Example password check (replace with your logic)
+    final storedHash = employee['password'];
+    if (storedHash == null || storedHash.isEmpty) {
+      LOGS.warning('No password stored for employee ${employee['id']}');
+      return 'main_word.password_data_error';
+    }
+
+    final isValid = await EncryptService().decryptPassword(
+      storedHash,
+      targetPassword: password,
+    );
+
+    return isValid;
   } catch (e, stack) {
-    APP_LOGS.error('Failed to check employee password', e, stack);
-    return false;
+    LOGS.error('Failed to check employee password', e, stack);
+    return 'main_word.password_incorrect';
   }
 }

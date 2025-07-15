@@ -5,7 +5,7 @@ import '../services/cashier/cashier_services.dart';
 // components
 import '../components/toastmsg.dart';
 import '../components/numpad.dart';
-import '../components/image.dart';
+import '../components/custom_widget.dart';
 import '../components/buttonswithsound.dart';
 
 import 'package:intl/intl.dart';
@@ -2749,7 +2749,37 @@ class CashierPageState extends State<CashierPage> {
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: () => _showLoginDialog(employee),
+        // --- THIS IS THE PART YOU CHANGE ---
+        onTap: () {
+          // Create a GlobalKey to access the state of EmployeeLoginCard
+          final GlobalKey<EmployeeLoginCardState> loginCardKey =
+              GlobalKey<EmployeeLoginCardState>();
+
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return EmployeeLoginCard(
+                key: loginCardKey,
+                employee: employee,
+                onPerformLogin: (dialogContext, password) {
+                  //
+                  // This is where your original _performLogin logic goes!
+                  //
+                  _performLogin(
+                    dialogContext, // Use the context from the dialog
+                    employee,
+                    password,
+                    (newError) {
+                      // This callback updates the error text inside the dialog
+                      loginCardKey.currentState?.setError(newError);
+                    },
+                  );
+                },
+              );
+            },
+          );
+        },
+        // --- END OF CHANGE ---
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -2794,86 +2824,7 @@ class CashierPageState extends State<CashierPage> {
     );
   }
 
-  void _showLoginDialog(Map<String, dynamic> employee) {
-    final TextEditingController passwordController = TextEditingController();
-    final ValueNotifier<bool> obscurePassword = ValueNotifier<bool>(true);
-    String? errorText;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Text(LOCALIZATION.localize("main_word.login")),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    LOCALIZATION.localize(
-                      "main_word.enter_password_to_continue",
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: obscurePassword,
-                    builder:
-                        (context, obscure, _) => TextField(
-                          controller: passwordController,
-                          obscureText: obscure,
-                          decoration: InputDecoration(
-                            labelText: LOCALIZATION.localize(
-                              "main_word.password",
-                            ),
-                            errorText: errorText,
-                            border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                obscure
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                              ),
-                              onPressed: () => obscurePassword.value = !obscure,
-                            ),
-                          ),
-                          onSubmitted:
-                              (_) => _performLogin(
-                                context,
-                                employee,
-                                passwordController.text,
-                                (newError) {
-                                  setStateDialog(() => errorText = newError);
-                                },
-                              ),
-                        ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(LOCALIZATION.localize("main_word.cancel")),
-                ),
-                ElevatedButton(
-                  onPressed:
-                      () => _performLogin(
-                        context,
-                        employee,
-                        passwordController.text,
-                        (newError) {
-                          setStateDialog(() => errorText = newError);
-                        },
-                      ),
-                  child: Text(LOCALIZATION.localize("main_word.login")),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
+  /// [FIX: 150725] [Employee perform login logic]
   Future<void> _performLogin(
     BuildContext dialogContext,
     Map<String, dynamic> employee,
@@ -2885,23 +2836,9 @@ class CashierPageState extends State<CashierPage> {
       return;
     }
 
-    final storedHash = employee['password'];
-    if (storedHash == null || storedHash.isEmpty) {
-      showToastMessage(
-        context,
-        LOCALIZATION.localize('main_word.password_data_error'),
-        ToastLevel.error,
-      );
-      Navigator.of(dialogContext).pop();
-      return;
-    }
+    final isValid = await empAuth(employee, password, LOGS: CASHIER_LOGS);
 
-    final bool isValid = await EncryptService().decryptPassword(
-      storedHash,
-      targetPassword: password,
-    );
-
-    if (isValid) {
+    if (isValid == true) {
       Navigator.of(dialogContext).pop();
       setState(() {
         _isAuthenticated = true;
@@ -2910,11 +2847,11 @@ class CashierPageState extends State<CashierPage> {
       });
       showToastMessage(
         context,
-        '${LOCALIZATION.localize("home_page.employee_set")}: ${employee['name']}!',
+        'Cashier: ${employee['name']}',
         ToastLevel.success,
       );
     } else {
-      setError(LOCALIZATION.localize('main_word.password_incorrect'));
+      setError(LOCALIZATION.localize(isValid));
       showToastMessage(
         context,
         LOCALIZATION.localize('main_word.password_incorrect'),

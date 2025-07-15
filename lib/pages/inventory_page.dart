@@ -17,6 +17,8 @@ class InventoryPageState extends State<InventoryPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isAuthenticated = false;
+  String employeeID = "RZ0000";
+  String employeeName = "RZ";
 
   // Add this method
   void resetAuthentication() {

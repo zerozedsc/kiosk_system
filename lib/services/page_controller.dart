@@ -120,11 +120,12 @@ class PageControllerClassState extends State<PageControllerClass> {
       selectedIcon: Icon(Icons.settings),
       label: Text('More'),
     ),
-    NavigationRailDestination(
-      icon: Icon(Icons.bug_report_outlined),
-      selectedIcon: Icon(Icons.bug_report),
-      label: Text('Debug'),
-    ),
+    if (DEBUG)
+      NavigationRailDestination(
+        icon: Icon(Icons.bug_report_outlined),
+        selectedIcon: Icon(Icons.bug_report),
+        label: Text('Debug'),
+      ),
   ];
 
   @override

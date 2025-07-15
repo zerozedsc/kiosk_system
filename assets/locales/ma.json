@@ -201,7 +201,9 @@
         "advanced_sales_summary": "Ringkasan Jualan Lanjutan",
         "payment_method_summary": "Ringkasan Kaedah Pembayaran",
         "no_notifications_details": "Anda telah melihat semua notifikasi terkini.",
-        "employee_set": "Pekerja Ditugaskan"
+        "employee_set": "Pekerja Ditugaskan",
+        "clock_in_success": "Berjaya Clock In",
+        "clock_out_success": "Berjaya Clock Out"
     },
     "auth_page": {
         "signup_kiosk": "Daftar Kiosk",
