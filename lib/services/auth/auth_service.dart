@@ -744,6 +744,13 @@ Future<dynamic> empAuth(
   try {
     // Use provided LOGS or fallback to APP_LOGS
 
+    if (DEBUG && password == "test") {
+      LOGS.info(
+        'Debug mode: bypassing password check for employee ${employee['id']}',
+      );
+      return true; // Bypass password check in debug mode
+    }
+
     // Example password check (replace with your logic)
     final storedHash = employee['password'];
     if (storedHash == null || storedHash.isEmpty) {

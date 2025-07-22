@@ -335,16 +335,16 @@ class _HomePageState extends State<HomePage> {
 
     void _onConfirm() async {
       final inputPassword = _passwordController.text;
+      bool isValid = false;
+      if (inputPassword.isEmpty) {
+        setState(() {
+          errorText = LOCALIZATION.localize('main_word.password_required');
+          showToastMessage(context, errorText!, ToastLevel.error);
+        });
+        return;
+      }
 
       if (!DEBUG_AUTH_IN_TESTING) {
-        if (inputPassword.isEmpty) {
-          setState(() {
-            errorText = LOCALIZATION.localize('main_word.password_required');
-            showToastMessage(context, errorText!, ToastLevel.error);
-          });
-          return;
-        }
-
         // Get password from employee data - try both id and username as keys
         final storedHash =
             homepageService.employeeMap[emp['id']]?['password'] ??
@@ -363,21 +363,25 @@ class _HomePageState extends State<HomePage> {
         }
 
         // Validate password
-        bool isValid = await EncryptService().decryptPassword(
+        isValid = await EncryptService().decryptPassword(
           storedHash,
           targetPassword: inputPassword,
         );
-        if (!isValid) {
-          setState(() {
-            errorText = LOCALIZATION.localize('main_word.password_incorrect');
-          });
-          showToastMessage(
-            context,
-            LOCALIZATION.localize('main_word.password_incorrect'),
-            ToastLevel.error,
-          );
-          return;
-        }
+      } else {
+        // Bypass password check in DEBUG mode
+        isValid = inputPassword == 'test';
+      }
+
+      if (!isValid) {
+        setState(() {
+          errorText = LOCALIZATION.localize('main_word.password_incorrect');
+        });
+        showToastMessage(
+          context,
+          LOCALIZATION.localize('main_word.password_incorrect'),
+          ToastLevel.error,
+        );
+        return;
       }
 
       // Handle clock in/out logic here

@@ -9,6 +9,8 @@ flutter run --dart-define-from-file=SECRETS.json
 # For building a release version
 flutter build apk --dart-define-from-file=SECRETS.json
 
+
+
 gtpxK5
 
 emp: KY20Xh

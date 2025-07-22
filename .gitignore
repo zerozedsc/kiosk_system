@@ -50,3 +50,4 @@ app-backup.db
 *.env
 AGENT_AI/
 commands_save.txt
+SECRETS.json

@@ -161,7 +161,7 @@ final ThemeData mainThemeData = ThemeData(
 );
 
 // [DEBUG VARIABLES]
-const bool DEBUG = false;
+const bool DEBUG = true;
 const bool DEBUG_AUTH_IN_TESTING =
     false; // Changed to false to enable authentication
 const bool UPDATE_DB_AS_DEBUG = false; // Update DB when in DEBUG mode
