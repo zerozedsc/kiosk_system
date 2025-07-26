@@ -560,8 +560,7 @@ class EncryptService {
   }
 }
 
-/// [050725] Checks if the provided password matches the admin password.
-/// [050725] Checks if the provided password matches the admin password.
+/// [260725] Checks if the provided password matches the admin password.
 class AdminAuthDialog extends StatelessWidget {
   final String? title;
   final String? subtitle;
@@ -624,30 +623,33 @@ class AdminAuthDialog extends StatelessWidget {
             LOCALIZATION.localize('main_word.admin_auth') ??
             "Admin Authentication",
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (subtitle != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Text(subtitle!, style: theme.textTheme.bodyMedium),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (subtitle != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Text(subtitle!, style: theme.textTheme.bodyMedium),
+              ),
+            TextField(
+              controller: adminController,
+              obscureText: true,
+              autofocus: true, // Auto-focus for better UX
+              decoration: InputDecoration(
+                labelText:
+                    LOCALIZATION.localize('auth_page.password') ??
+                    "Admin Password",
+                prefixIcon: const Icon(Icons.lock_outline),
+                border: const OutlineInputBorder(),
+              ),
+              onSubmitted:
+                  (value) => _attemptVerification(context, adminController),
             ),
-          TextField(
-            controller: adminController,
-            obscureText: true,
-            autofocus: true, // Auto-focus for better UX
-            decoration: InputDecoration(
-              labelText:
-                  LOCALIZATION.localize('auth_page.password') ??
-                  "Admin Password",
-              prefixIcon: const Icon(Icons.lock_outline),
-              border: const OutlineInputBorder(),
-            ),
-            onSubmitted:
-                (value) => _attemptVerification(context, adminController),
-          ),
-        ],
+          ],
+        ),
       ),
+
       actions: [
         TextButton(
           onPressed:
@@ -676,7 +678,7 @@ class AdminAuthDialog extends StatelessWidget {
     if (input.isEmpty) {
       showToastMessage(
         context,
-        LOCALIZATION.localize('more_page.enter_admin_password') ??
+        LOCALIZATION.localize('auth_page.enter_admin_password') ??
             "Please enter admin password",
         ToastLevel.warning,
       );

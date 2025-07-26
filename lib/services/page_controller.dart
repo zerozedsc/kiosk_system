@@ -15,6 +15,8 @@ class PageControllerClassState extends State<PageControllerClass> {
   late String initialQuery;
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<CashierPageState> cashierPageKey =
+      GlobalKey<CashierPageState>();
   final GlobalKey<InventoryPageState> inventoryPageKey =
       GlobalKey<InventoryPageState>();
 
@@ -44,7 +46,7 @@ class PageControllerClassState extends State<PageControllerClass> {
     _children = [
       HomePage(reloadNotifier: homeReloadNotifier),
       // Add placeholder widgets for other pages
-      CashierPage(reloadNotifier: cashierReloadNotifier),
+      CashierPage(key: cashierPageKey, reloadNotifier: cashierReloadNotifier),
       InventoryPage(
         key: inventoryPageKey,
         reloadNotifier: inventoryReloadNotifier,
@@ -73,6 +75,8 @@ class PageControllerClassState extends State<PageControllerClass> {
       if (index == 1) {
         // Cashier tab index
         cashierReloadNotifier.value++;
+        // Reset authentication when entering Cashier tab
+        cashierPageKey.currentState?.resetAuthentication();
       }
 
       if (index == 2) {
@@ -98,35 +102,43 @@ class PageControllerClassState extends State<PageControllerClass> {
     }
   }
 
-  // Navigation items - optimized for landscape view
-  List<NavigationRailDestination> get navRailItems => const [
-    NavigationRailDestination(
-      icon: Icon(Icons.home_outlined),
-      selectedIcon: Icon(Icons.home),
-      label: Text('Home'),
-    ),
-    NavigationRailDestination(
-      icon: Icon(Icons.point_of_sale_outlined),
-      selectedIcon: Icon(Icons.point_of_sale),
-      label: Text('Cashier'),
-    ),
-    NavigationRailDestination(
-      icon: Icon(Icons.inventory_2_outlined),
-      selectedIcon: Icon(Icons.inventory),
-      label: Text('Inventory'),
-    ),
-    NavigationRailDestination(
-      icon: Icon(Icons.settings_outlined),
-      selectedIcon: Icon(Icons.settings),
-      label: Text('More'),
-    ),
-    if (DEBUG)
+  // Navigation items - optimized for landscape view with responsive sizing
+  List<NavigationRailDestination> _buildNavRailItems(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    // Calculate responsive sizes based on screen dimensions
+    final iconSize = (screenHeight * 0.035).clamp(20.0, 28.0);
+    final fontSize = (screenHeight * 0.018).clamp(10.0, 14.0);
+
+    return [
       NavigationRailDestination(
-        icon: Icon(Icons.bug_report_outlined),
-        selectedIcon: Icon(Icons.bug_report),
-        label: Text('Debug'),
+        icon: Icon(Icons.home_outlined, size: iconSize),
+        selectedIcon: Icon(Icons.home, size: iconSize),
+        label: Text('Home', style: TextStyle(fontSize: fontSize)),
       ),
-  ];
+      NavigationRailDestination(
+        icon: Icon(Icons.point_of_sale_outlined, size: iconSize),
+        selectedIcon: Icon(Icons.point_of_sale, size: iconSize),
+        label: Text('Cashier', style: TextStyle(fontSize: fontSize)),
+      ),
+      NavigationRailDestination(
+        icon: Icon(Icons.inventory_2_outlined, size: iconSize),
+        selectedIcon: Icon(Icons.inventory, size: iconSize),
+        label: Text('Inventory', style: TextStyle(fontSize: fontSize)),
+      ),
+      NavigationRailDestination(
+        icon: Icon(Icons.settings_outlined, size: iconSize),
+        selectedIcon: Icon(Icons.settings, size: iconSize),
+        label: Text('More', style: TextStyle(fontSize: fontSize)),
+      ),
+      if (DEBUG)
+        NavigationRailDestination(
+          icon: Icon(Icons.bug_report_outlined, size: iconSize),
+          selectedIcon: Icon(Icons.bug_report, size: iconSize),
+          label: Text('Debug', style: TextStyle(fontSize: fontSize)),
+        ),
+    ];
+  }
 
   @override
   // ...existing code...
@@ -134,6 +146,13 @@ class PageControllerClassState extends State<PageControllerClass> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Calculate responsive rail width based on screen size
+    final railWidth = (screenWidth * 0.1).clamp(70.0, 100.0);
+    final railIconSize = (screenHeight * 0.035).clamp(20.0, 28.0);
+    final railFontSize = (screenHeight * 0.018).clamp(10.0, 14.0);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -141,26 +160,51 @@ class PageControllerClassState extends State<PageControllerClass> {
       body: SafeArea(
         child: Row(
           children: [
-            // NavigationRail on the left side
-            NavigationRail(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: onTabTapped,
-              labelType: NavigationRailLabelType.all,
-              destinations: navRailItems,
-              backgroundColor: theme.colorScheme.background,
-              selectedIconTheme: IconThemeData(
-                color: theme.colorScheme.primary,
+            // NavigationRail on the left side with responsive sizing and overflow protection
+            SizedBox(
+              width: railWidth,
+              height: screenHeight,
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight:
+                        screenHeight - 50, // Account for safe area and padding
+                  ),
+                  child: IntrinsicHeight(
+                    child: NavigationRail(
+                      selectedIndex: _currentIndex,
+                      onDestinationSelected: onTabTapped,
+                      labelType: NavigationRailLabelType.all,
+                      destinations: _buildNavRailItems(context),
+                      backgroundColor: theme.colorScheme.surface,
+                      selectedIconTheme: IconThemeData(
+                        color: theme.colorScheme.primary,
+                        size: railIconSize,
+                      ),
+                      unselectedIconTheme: IconThemeData(
+                        color:
+                            isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                        size: railIconSize,
+                      ),
+                      selectedLabelTextStyle: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: railFontSize,
+                      ),
+                      unselectedLabelTextStyle: TextStyle(
+                        fontSize: railFontSize,
+                      ),
+                      minWidth: railWidth,
+                      useIndicator: true,
+                      indicatorColor: theme.colorScheme.primary.withValues(
+                        alpha: 0.2,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              unselectedIconTheme: IconThemeData(
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              ),
-              selectedLabelTextStyle: TextStyle(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-              minWidth: 85,
-              useIndicator: true,
-              indicatorColor: theme.colorScheme.primary.withOpacity(0.2),
             ),
 
             // Vertical divider between navigation rail and content
@@ -169,8 +213,8 @@ class PageControllerClassState extends State<PageControllerClass> {
               width: 1,
               color:
                   isDark
-                      ? Colors.white.withOpacity(0.08)
-                      : Colors.grey.withOpacity(0.2),
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : Colors.grey.withValues(alpha: 0.2),
             ),
 
             // Main content area
@@ -182,6 +226,4 @@ class PageControllerClassState extends State<PageControllerClass> {
       ),
     );
   }
-
-  // ...existing code...
 }

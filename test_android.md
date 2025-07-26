@@ -4,22 +4,33 @@ ANDROID 12
 OPPO RENO 7a
 TEST WITH FLUTTER RUN (MAYBE DEBUG MODE)
 
-pass: I7kHmh
-3l88lf
+pass: 6C93ro
+emp: 
 
-### <REGISTER PAGE>
-1. FIX: need to make size for entry field shrink (responsive based on screen size)
-2. FIX: hard to scroll to entry other field (location, admin password) if keyboard set to down (okay if keyboard float)
-3. FIX: check for warning toast message, this is annoying as it always show when i pressed enter in any field
-4. ADD: when pressed enter add other field except admin_password, should make it move to other field (below pressed)
+### FIXED ISSUES ✅
+- **LiveSalesSummarySection** - Improved font sizes and readability for Android phones
+  - Increased card padding from 16px to 20px
+  - Increased icon size from 48px to 56px
+  - Increased label font size from 13px to 15px
+  - Increased value font size from 16px to 20px (bold)
+  - Better spacing and visual hierarchy
 
-### <LOGIN PAGE>
-1. FIX: need to make size for entry field shrink (responsive based on screen size)
-2. FIX: hard to scroll to entry other field (location, admin password) if keyboard set to down (okay if keyboard float)
-3. FIX: not responsive, got bottom overflowed by 8.0 pixels
+- **Advanced Summary Dialog** - Completely redesigned for Android phones
+  - ✅ Tap outside dialog to close (barrierDismissible: true)
+  - ✅ Fullscreen modal approach for phones (< 500px width)
+  - ✅ Fixed all overflow issues with proper constraints
+  - ✅ Mobile-optimized tabbed layout
+  - ✅ List-based payment method display (no wrapping issues)
+  - ✅ Better touch targets and spacing
+  - ✅ Improved typography and readability
 
-### <SIDE TAB>
-1. FIX: not responsive. got problem bottom overflowd by 23 pixels
-2. ADJUST: need to make size icon and font size of tabbar responsive based on the screen size
+### TEST ITEMS 📱
+1. LiveSalesSummarySection cards - Check font readability and touch targets
+2. Advanced Summary button - Verify proper sizing and responsiveness
+3. Advanced Summary dialog - Test tap-outside-to-close functionality
+4. Dialog content tabs - Verify no overflow in sales and payment tabs
+5. Payment method list - Check scrolling and layout on small screens
+6. Filter controls - Test dropdown functionality
+7. Overall layout - Verify no UI overflow on OPPO Reno 7a
 
 ###

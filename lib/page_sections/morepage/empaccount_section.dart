@@ -1474,7 +1474,7 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
     final theme = widget.theme;
     final mainColor = widget.mainColor;
 
-    return Padding(
+    return SingleChildScrollView(
       key: const ValueKey('employeeAccount'),
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
       child: Column(
@@ -1705,330 +1705,179 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                               const SizedBox(width: 16),
 
                               // edit employee button
-                              if (emp["username"] != "ADMIN")
-                                IconButton(
-                                  icon: Icon(Icons.edit, color: mainColor),
-                                  tooltip:
-                                      LOCALIZATION.localize(
-                                        'more_page.edit_employee',
-                                      ) ??
-                                      "Edit",
-                                  onPressed: () async {
-                                    // Prompt for admin password
-                                    bool? confirmed =
-                                        await AdminAuthDialog.show(context);
+                              IconButton(
+                                icon: Icon(Icons.edit, color: mainColor),
+                                tooltip:
+                                    LOCALIZATION.localize(
+                                      'more_page.edit_employee',
+                                    ) ??
+                                    "Edit",
+                                onPressed: () async {
+                                  // Prompt for admin password
+                                  bool? confirmed = await AdminAuthDialog.show(
+                                    context,
+                                  );
 
-                                    if (confirmed == true) {
-                                      await showAddAdjustEmployeeDialog(
-                                        context,
-                                        mainColor,
-                                        employee: emp,
-                                        empID: int.parse(empId),
-                                        setState: () async {
-                                          await _loadEmployees();
-                                        },
-                                      );
-                                    }
-                                  },
-                                ),
+                                  if (confirmed == true) {
+                                    await showAddAdjustEmployeeDialog(
+                                      context,
+                                      mainColor,
+                                      employee: emp,
+                                      empID: int.parse(empId),
+                                      setState: () async {
+                                        await _loadEmployees();
+                                      },
+                                    );
+                                  }
+                                },
+                              ),
 
                               // delete button
-                              if (emp["username"] != "ADMIN")
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.redAccent,
-                                  ),
-                                  tooltip:
-                                      LOCALIZATION.localize(
-                                        'more_page.delete_employee',
-                                      ) ??
-                                      "Delete",
-                                  onPressed: () async {
-                                    // Prompt for admin password
-                                    final adminController =
-                                        TextEditingController();
-                                    bool? confirmed = await showDialog<bool>(
-                                      context: context,
-                                      builder:
-                                          (context) => AlertDialog(
-                                            title: Text(
-                                              LOCALIZATION.localize(
-                                                    'main_word.admin_auth',
-                                                  ) ??
-                                                  "Admin Authentication",
-                                            ),
-                                            content: TextField(
-                                              controller: adminController,
-                                              obscureText: true,
-                                              decoration: InputDecoration(
-                                                labelText:
-                                                    LOCALIZATION.localize(
-                                                      'auth_page.password',
-                                                    ) ??
-                                                    "Admin Password",
-                                                prefixIcon: const Icon(
-                                                  Icons.lock_outline,
-                                                ),
-                                              ),
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.of(
-                                                      context,
-                                                    ).pop(false),
-                                                child: Text(
-                                                  LOCALIZATION.localize(
-                                                        'main_word.cancel',
-                                                      ) ??
-                                                      "Cancel",
-                                                ),
-                                              ),
-                                              ElevatedButton(
-                                                onPressed: () async {
-                                                  final input =
-                                                      adminController.text;
-                                                  // Replace this with your real admin password check logic
-                                                  bool isValid =
-                                                      await AdminAuthDialog.adminAuth(
-                                                        input,
-                                                      );
-                                                  if (isValid) {
-                                                    Navigator.of(
-                                                      context,
-                                                    ).pop(true);
-                                                  } else {
-                                                    showToastMessage(
-                                                      context,
-                                                      LOCALIZATION.localize(
-                                                            'main_word.invalid_password',
-                                                          ) ??
-                                                          "Invalid password",
-                                                      ToastLevel.error,
-                                                    );
-                                                  }
-                                                },
-                                                child: Text(
-                                                  LOCALIZATION.localize(
-                                                        'main_word.confirm',
-                                                      ) ??
-                                                      "Confirm",
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.redAccent,
+                                ),
+                                tooltip:
+                                    LOCALIZATION.localize(
+                                      'more_page.delete_employee',
+                                    ) ??
+                                    "Delete",
+                                onPressed: () async {
+                                  // Prompt for admin password
+                                  bool? confirmed = await AdminAuthDialog.show(
+                                    context,
+                                  );
+
+                                  if (confirmed == true) {
+                                    await kioskApiService.updateEmployee(
+                                      emp["username"],
+                                      EmployeeData(
+                                        kioskId: emp["kiosk_id"] ?? "",
+                                        id: int.parse(empId),
+                                        username: emp["username"],
+                                        name: emp["name"] ?? "",
+                                        age: emp["age"] ?? 0,
+                                        address: emp["address"] ?? "",
+                                        phoneNumber: emp["phone_number"] ?? "",
+                                        email: emp["email"] ?? "",
+                                        description: emp["description"] ?? "",
+                                        password: emp['password'] ?? '',
+                                        exist: false, // Mark as deleted
+                                        image: emp['image'],
+                                        isAdmin: false,
+                                      ),
                                     );
 
-                                    if (confirmed == true) {
-                                      await kioskApiService.updateEmployee(
-                                        emp["username"],
-                                        EmployeeData(
-                                          kioskId: emp["kiosk_id"] ?? "",
-                                          id: int.parse(empId),
-                                          username: emp["username"],
-                                          name: emp["name"] ?? "",
-                                          age: emp["age"] ?? 0,
-                                          address: emp["address"] ?? "",
-                                          phoneNumber:
-                                              emp["phone_number"] ?? "",
-                                          email: emp["email"] ?? "",
-                                          description: emp["description"] ?? "",
-                                          password: emp['password'] ?? '',
-                                          exist: false, // Mark as deleted
-                                          image: emp['image'],
-                                          isAdmin: false,
-                                        ),
+                                    final checkDelete = await EMPQUERY
+                                        .deleteEmployee(empId);
+
+                                    if (checkDelete) {
+                                      await _loadEmployees();
+                                      showToastMessage(
+                                        context,
+                                        "${LOCALIZATION.localize('more_page.delete_employee_msg')} for ${emp["username"]}",
+                                        ToastLevel.warning,
                                       );
-
-                                      final checkDelete = await EMPQUERY
-                                          .deleteEmployee(empId);
-
-                                      if (checkDelete) {
-                                        await _loadEmployees();
-                                        showToastMessage(
-                                          context,
-                                          "${LOCALIZATION.localize('more_page.delete_employee_msg')} for ${emp["username"]}",
-                                          ToastLevel.warning,
-                                        );
-                                      } else {
-                                        showToastMessage(
-                                          context,
-                                          LOCALIZATION.localize(
-                                                'main_word.delete_failed',
-                                              ) ??
-                                              "Failed to delete employee",
-                                          ToastLevel.error,
-                                        );
-                                      }
+                                    } else {
+                                      showToastMessage(
+                                        context,
+                                        LOCALIZATION.localize(
+                                              'main_word.delete_failed',
+                                            ) ??
+                                            "Failed to delete employee",
+                                        ToastLevel.error,
+                                      );
                                     }
-                                  },
-                                ),
+                                  }
+                                },
+                              ),
 
                               // show password button
-                              if (emp["username"] != "ADMIN")
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.visibility,
-                                    color: Colors.blueAccent,
-                                  ),
-                                  tooltip:
-                                      LOCALIZATION.localize(
-                                        'main_word.show_password',
-                                      ) ??
-                                      "Show Password",
-                                  onPressed: () async {
-                                    // Prompt for admin password
-                                    final adminController =
-                                        TextEditingController();
-                                    bool? confirmed = await showDialog<bool>(
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.visibility,
+                                  color: Colors.blueAccent,
+                                ),
+                                tooltip:
+                                    LOCALIZATION.localize(
+                                      'main_word.show_password',
+                                    ) ??
+                                    "Show Password",
+                                onPressed: () async {
+                                  // Prompt for admin password
+                                  bool? confirmed = await AdminAuthDialog.show(
+                                    context,
+                                  );
+
+                                  if (confirmed == true) {
+                                    // Decrypt and show the employee password
+                                    String decrypted = "";
+                                    try {
+                                      decrypted = await EncryptService()
+                                          .decryptPassword(emp['password']);
+                                    } catch (e) {
+                                      decrypted =
+                                          LOCALIZATION.localize(
+                                            'main_word.decrypt_failed',
+                                          ) ??
+                                          "Failed to decrypt password";
+                                    }
+                                    showDialog(
                                       context: context,
                                       builder:
                                           (context) => AlertDialog(
                                             title: Text(
                                               LOCALIZATION.localize(
-                                                    'main_word.admin_auth',
+                                                    'main_word.employee_password',
                                                   ) ??
-                                                  "Admin Authentication",
+                                                  "Employee Password",
                                             ),
-                                            content: TextField(
-                                              controller: adminController,
-                                              obscureText: true,
-                                              decoration: InputDecoration(
-                                                labelText:
-                                                    LOCALIZATION.localize(
-                                                      'auth_page.password',
-                                                    ) ??
-                                                    "Admin Password",
-                                                prefixIcon: const Icon(
-                                                  Icons.lock_outline,
-                                                ),
-                                              ),
-                                            ),
+                                            content: SelectableText(decrypted),
                                             actions: [
-                                              // Cancel buttons
                                               TextButton(
-                                                onPressed:
-                                                    () => Navigator.of(
-                                                      context,
-                                                    ).pop(false),
-                                                child: Text(
-                                                  LOCALIZATION.localize(
-                                                        'main_word.cancel',
-                                                      ) ??
-                                                      "Cancel",
-                                                ),
-                                              ),
-
-                                              // Confirm button
-                                              ElevatedButton(
-                                                onPressed: () async {
-                                                  // Replace this with your real admin password check
-                                                  final input =
-                                                      adminController.text;
-                                                  // Example: check against a hardcoded password or use your own logic
-
-                                                  bool isValid =
-                                                      await AdminAuthDialog.adminAuth(
-                                                        input,
-                                                      );
-
-                                                  if (isValid) {
-                                                    Navigator.of(
-                                                      context,
-                                                    ).pop(true);
-                                                  } else {
-                                                    showToastMessage(
-                                                      context,
-                                                      LOCALIZATION.localize(
-                                                            'main_word.invalid_password',
-                                                          ) ??
-                                                          "Invalid password",
-                                                      ToastLevel.error,
-                                                    );
-                                                  }
+                                                onPressed: () {
+                                                  Clipboard.setData(
+                                                    ClipboardData(
+                                                      text: decrypted,
+                                                    ),
+                                                  );
+                                                  showToastMessage(
+                                                    context,
+                                                    LOCALIZATION.localize(
+                                                          'main_word.copied',
+                                                        ) ??
+                                                        "Copied to clipboard",
+                                                    ToastLevel.success,
+                                                  );
                                                 },
                                                 child: Text(
                                                   LOCALIZATION.localize(
-                                                        'main_word.confirm',
+                                                        'main_word.copy',
                                                       ) ??
-                                                      "Confirm",
+                                                      "Copy",
+                                                ),
+                                              ),
+
+                                              TextButton(
+                                                onPressed:
+                                                    () =>
+                                                        Navigator.of(
+                                                          context,
+                                                        ).pop(),
+                                                child: Text(
+                                                  LOCALIZATION.localize(
+                                                        'main_word.close',
+                                                      ) ??
+                                                      "Close",
                                                 ),
                                               ),
                                             ],
                                           ),
                                     );
-
-                                    if (confirmed == true) {
-                                      // Decrypt and show the employee password
-                                      String decrypted = "";
-                                      try {
-                                        decrypted = await EncryptService()
-                                            .decryptPassword(emp['password']);
-                                      } catch (e) {
-                                        decrypted =
-                                            LOCALIZATION.localize(
-                                              'main_word.decrypt_failed',
-                                            ) ??
-                                            "Failed to decrypt password";
-                                      }
-                                      showDialog(
-                                        context: context,
-                                        builder:
-                                            (context) => AlertDialog(
-                                              title: Text(
-                                                LOCALIZATION.localize(
-                                                      'main_word.employee_password',
-                                                    ) ??
-                                                    "Employee Password",
-                                              ),
-                                              content: SelectableText(
-                                                decrypted,
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () {
-                                                    Clipboard.setData(
-                                                      ClipboardData(
-                                                        text: decrypted,
-                                                      ),
-                                                    );
-                                                    showToastMessage(
-                                                      context,
-                                                      LOCALIZATION.localize(
-                                                            'main_word.copied',
-                                                          ) ??
-                                                          "Copied to clipboard",
-                                                      ToastLevel.success,
-                                                    );
-                                                  },
-                                                  child: Text(
-                                                    LOCALIZATION.localize(
-                                                          'main_word.copy',
-                                                        ) ??
-                                                        "Copy",
-                                                  ),
-                                                ),
-
-                                                TextButton(
-                                                  onPressed:
-                                                      () =>
-                                                          Navigator.of(
-                                                            context,
-                                                          ).pop(),
-                                                  child: Text(
-                                                    LOCALIZATION.localize(
-                                                          'main_word.close',
-                                                        ) ??
-                                                        "Close",
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                      );
-                                    }
-                                  },
-                                ),
+                                  }
+                                },
+                              ),
 
                               // Attendance button
                               IconButton(
@@ -2043,79 +1892,8 @@ class _EmployeeAccountSectionState extends State<EmployeeAccountSection> {
                                     "Attendance",
                                 onPressed: () async {
                                   // Prompt for admin password
-                                  final adminController =
-                                      TextEditingController();
-                                  bool? confirmed = await showDialog<bool>(
-                                    context: context,
-                                    builder:
-                                        (context) => AlertDialog(
-                                          title: Text(
-                                            LOCALIZATION.localize(
-                                                  'main_word.admin_auth',
-                                                ) ??
-                                                "Admin Authentication",
-                                          ),
-                                          content: TextField(
-                                            controller: adminController,
-                                            obscureText: true,
-                                            decoration: InputDecoration(
-                                              labelText:
-                                                  LOCALIZATION.localize(
-                                                    'auth_page.password',
-                                                  ) ??
-                                                  "Admin Password",
-                                              prefixIcon: const Icon(
-                                                Icons.lock_outline,
-                                              ),
-                                            ),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed:
-                                                  () => Navigator.of(
-                                                    context,
-                                                  ).pop(false),
-                                              child: Text(
-                                                LOCALIZATION.localize(
-                                                      'main_word.cancel',
-                                                    ) ??
-                                                    "Cancel",
-                                              ),
-                                            ),
-
-                                            ElevatedButton(
-                                              onPressed: () async {
-                                                final input =
-                                                    adminController.text;
-                                                // Replace this with your real admin password check logic
-                                                bool isValid =
-                                                    await AdminAuthDialog.adminAuth(
-                                                      input,
-                                                    );
-                                                if (isValid) {
-                                                  Navigator.of(
-                                                    context,
-                                                  ).pop(true);
-                                                } else {
-                                                  showToastMessage(
-                                                    context,
-                                                    LOCALIZATION.localize(
-                                                          'main_word.invalid_password',
-                                                        ) ??
-                                                        "Invalid password",
-                                                    ToastLevel.error,
-                                                  );
-                                                }
-                                              },
-                                              child: Text(
-                                                LOCALIZATION.localize(
-                                                      'main_word.confirm',
-                                                    ) ??
-                                                    "Confirm",
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                  bool? confirmed = await AdminAuthDialog.show(
+                                    context,
                                   );
 
                                   if (confirmed == true) {

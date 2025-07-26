@@ -4,17 +4,38 @@ adb -s emulator-5556 root
 adb pull /data/user/0/com.rozeriya.kiosksystem.debug/app_flutter/app.db
 
 # For running in debug mode
-flutter run --dart-define-from-file=SECRETS.json
+flutter run --dart-define-from-file=_SECRETS.json
 
 # For building a release version
 flutter build apk --dart-define-from-file=SECRETS.json
 
+adb devices
+adb tcpip 5555
+adb connect 192.168.0.162:5555
+
+## take screenshot use CMD
+adb -s 192.168.0.162:5555 exec-out screencap -p > TODO\more_page3.png
 
 
-gtpxK5
+6C93ro
+adb -s 192.168.0.162:5555 shell input text 6C93ro
+adb shell input keyevent 66
 
-emp: KY20Xh
+emp: Wc0yz9
+adb -s 192.168.0.162:5555 shell input text Wc0yz9
+emp: 9ZnAxS
+adb -s 192.168.0.162:5555 shell input text 9ZnAxS
 
 
+DELETE FROM employee_attendance;
+ALTER TABLE employee_attendance AUTO_INCREMENT = 1;
+DELETE FROM kiosk_transaction;
+ALTER TABLE kiosk_transaction AUTO_INCREMENT = 1;
+DELETE FROM inventory_transaction;
+ALTER TABLE inventory_transaction AUTO_INCREMENT = 1;
+DELETE FROM employee_info;
 ALTER TABLE employee_info AUTO_INCREMENT = 1;
+DELETE FROM kiosk_info;
 ALTER TABLE kiosk_info AUTO_INCREMENT = 1;
+
+I like this, Is it possible to make header a little bit narrow for order summary section?

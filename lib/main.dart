@@ -161,7 +161,7 @@ class _AppRootState extends State<AppRoot> {
                         // If the app is not registered, show the registration page
                         return const LoginPage();
                       } else {
-                        return const SignupPage();
+                        return const RegisterKioskPage();
                       }
                     },
                   ),

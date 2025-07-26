@@ -161,7 +161,10 @@
         "enter_password_to_continue": "Masukkan kata laluan untuk meneruskan",
         "password": "Kata Laluan",
         "login": "Log Masuk",
-        "welcome": "Selamat Datang"
+        "welcome": "Selamat Datang",
+        "reset": "Reset",
+        "backup": "Backup",
+        "password_required": "Kata laluan diperlukan"
     },
     "home_page": {
         "title": "Laman Utama",
@@ -231,13 +234,19 @@
         "login_id_failed": "ID Kiosk tidak sah",
         "login_password_failed": "Kata laluan tidak sah",
         "kiosk_credentials": "ID&Password Kiosk",
-        "enter_admin_password": "Masukkan Kata Laluan Admin"
+        "enter_admin_password": "Masukkan Kata Laluan Admin",
+        "invalid_admin_password": "Kata Laluan Admin Tidak Sah",
+        "select_account": "Pilih Akaun",
+        "choose_your_account": "Pilih Akaun Anda",
+        "no_employees_found": "Tiada Pekerja Ditemui",
+        "contact_admin": "Sila hubungi pentadbir untuk bantuan",
+        "employee_login": "Log Masuk Pekerja"
     },
     "cashier_page": {
         "title": "Juruwang",
         "sides": "Sampingan",
         "others": "Lain-lain",
-        "order_summary": "Ringkasan Pesanan",
+        "order_summary": "Pesanan",
         "enter_coupon_code": "Masukkan Kod Kupon",
         "coupon_code": "Kod Kupon",
         "total": "Jumlah",
@@ -255,7 +264,7 @@
         "cart_empty": "Troli Kosong",
         "coupon_placeholder": "Kod Kupon",
         "coupon_applied": "Kupon Digunakan",
-        "subtotal": "Jumlah Sebelum Diskaun",
+        "subtotal": "Jumlah Asal",
         "select_payment_method": "Pilih Cara Pembayaran",
         "payment_method": "Cara Pembayaran",
         "payment_status": "Status Pembayaran",
@@ -282,7 +291,10 @@
         "not_enough_stock": "Stok tidak mencukupi",
         "select_items": "Item Dipilih",
         "amount_too_small": "Jumlah Bayaran tidak mencukupi",
-        "select_account": "Pilih Akaun"
+        "select_account": "Pilih Akaun",
+        "no_employees_found": "Tiada Pekerja Ditemui",
+        "items_removed": "Item Berjaya Dikeluarkan",
+        "bulk_remove": "Padam Pukal"
     },
     "inventory_page": {
         "add_stock": "Tambah Stok",
@@ -354,7 +366,31 @@
         "toggle_product_failed": "Gagal menukar produk ke aktif/tidak aktif",
         "toggle_set_failed": "Gagal menukar set ke aktif/tidak aktif",
         "adjust_set": "Pelarasan Set",
-        "items_in_set": "Item Dalam Set"
+        "items_in_set": "Item Dalam Set",
+        "title": "Pengurusan Inventori",
+        "all_items": "Semua Item",
+        "products": "Produk",
+        "sets": "Set",
+        "filter_by": "Tapis mengikut",
+        "sort_by": "Susun mengikut",
+        "sort_name": "Nama",
+        "sort_stock": "Stok",
+        "sort_price": "Harga",
+        "search_placeholder": "Cari inventori...",
+        "no_results": "Tiada item dijumpai",
+        "total_stocks": "Jumlah Stok",
+        "total_pieces": "Jumlah Pcs",
+        "total_pieces_used": "Jumlah Pcs Digunakan",
+        "set": "Set",
+        "bulk_operations": "Operasi Pukal",
+        "product_details": "Butiran Produk",
+        "set_details": "Butiran Set",
+        "product_information": "Maklumat Produk",
+        "stock_information": "Maklumat Stok",
+        "use_pieces": "Guna Pcs",
+        "stock_to_add": "Stok untuk Ditambah",
+        "pieces_to_use": "Pcs untuk Digunakan",
+        "added_stock": "Stok Ditambah"
     },
     "more_page": {
         "theme_mode": "Tema",
@@ -390,7 +426,12 @@
         "sync_status_important_note": "⚠️ Sila simpan maklumat ini dengan selamat. Pekerja akan memerlukannya untuk log masuk.",
         "employee_created_success": "Pekerja berjaya ditambah",
         "employee_updated_success": "Maklumat pekerja berjaya dikemas kini",
-        "delete_employee_message": "Data pekerja telah dipadam."
+        "delete_employee_message": "Data pekerja telah dipadam.",
+        "data_management": "Pengurusan Data",
+        "factory_reset_desc": "Reset aplikasi ke tetapan asal. Semua data akan dipadam.",
+        "factory_reset": "Reset asal",
+        "system_info": "Maklumat Sistem",
+        "system_info_desc": "Maklumat sistem seperti versi, tarikh, dan masa."
     },
     "bluetooth_service": {
         "permission": "Kebenaran Bluetooth",
